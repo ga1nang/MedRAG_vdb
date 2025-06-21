@@ -4,4 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "colpali-engine>=0.3.10",
+    "datasets>=3.6.0",
+    "huggingface-hub[hf-transfer]>=0.33.0",
+    "qdrant-client>=1.14.3",
+    "rich>=14.0.0",
+    "stamina>=25.1.0",
+    "transformers>=4.51.3",
+]
