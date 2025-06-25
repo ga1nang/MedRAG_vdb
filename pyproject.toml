@@ -10,6 +10,7 @@ dependencies = [
     "huggingface-hub[hf-transfer]>=0.33.0",
     "ipykernel>=6.29.5",
     "matplotlib>=3.9.4",
+    "pdf2image>=1.17.0",
     "qdrant-client>=1.14.3",
     "rich>=14.0.0",
     "stamina>=25.1.0",
