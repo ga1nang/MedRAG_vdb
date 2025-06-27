@@ -9,7 +9,8 @@ vector_db:
   port: 6333
   collection_name: "Tropical Diseases"
   vector_size: 128
-
+  metric: Distance.COSINE
+  url: "http://localhost:6333"
 
 # Retrieval
 retrieval_top_k: 5
