@@ -1,0 +1,25 @@
+# Embedding settings
+embedding_model: "vidore/colpali-v1.3"
+device: "cuda"
+
+# Vector DB settings
+vector_db:
+  type: "qdrant"
+  host: "localhost"
+  port: 6333
+  collection_name: "Tropical Diseases"
+  vector_size: 128
+
+
+# Retrieval
+retrieval_top_k: 5
+
+# LLM
+llm:
+  provider: "huggingface"
+  model: "gpt2"
+
+# Paths
+paths:
+  raw_data: "data/raw/"
+  processed_data: "data/processed/"
