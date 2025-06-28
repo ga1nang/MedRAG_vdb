@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/medrag_colpali.egg-info/PKG-INFO
+src/medrag_colpali.egg-info/SOURCES.txt
+src/medrag_colpali.egg-info/dependency_links.txt
+src/medrag_colpali.egg-info/requires.txt
+src/medrag_colpali.egg-info/top_level.txt
+src/rag/__init__.py
+src/rag/app.py
+src/rag/config.py
+src/rag/rag.py
+src/rag/embedders/colpali_manager.py
+src/rag/utils/pdf_manager.py
+src/rag/utils/utils.py
+src/rag/vectordb/middleware.py
+src/rag/vectordb/qdrant_manager.py

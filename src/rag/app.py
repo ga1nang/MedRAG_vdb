@@ -8,7 +8,7 @@ A minimal Gradio UI that lets a user:
 """
 import gradio as gr
 
-from vectordb.middleware import Middleware
+from rag.vectordb.middleware import Middleware
 from rag.rag import Rag
 
 rag = Rag()
