@@ -26,12 +26,11 @@ class Middleware:
         self.colpali_manager = ColPaliManager()
         
         # Create Qdrant fodler
-        qdrant_folder = Path(cfg["paths"]["db_path"])
-        qdrant_folder.mkdir(exist_ok=True)
+        # qdrant_folder = Path(cfg["paths"]["db_path"])
+        # qdrant_folder.mkdir(exist_ok=True)
         
         # Start Qdrant wrapper
         self.db = QdrantManager(
-            db_path=qdrant_folder,
             collection_name=cfg["vector_db"]["collection_name"],
             vector_size=cfg["vector_db"]["vector_size"],
             create_collection=create_collection,
@@ -70,21 +69,20 @@ class Middleware:
     
     def search(
         self, 
-        queries: List[str], 
+        query: str, 
         top_k: int = cfg["retrieval_top_k"]
     ) -> List[Any]:
         """
         Embed each query with ColPali's text encoder, 
         then fetch top-k image pages from vector database.
         """    
-        print(f"[Middleware] Received {len(queries)} query/queries")
+        print(f"[Middleware] Received query/queries")
         results = []
-        
-        for query in queries:
-            print(f"  → {query!r}")
-            query_vec = self.colpali_manager.process_text([query])[0]
-            result = self.db.search(query_vec, top_k)
-            print(f"    ↳ hits: {result}")
-            results.append(result)
+
+        print(f"  → {query!r}")
+        query_vec = self.colpali_manager.process_text(query)[0]
+        result = self.db.search(query_vec, top_k)
+        print(f"    ↳ hits: {result}")
+        results.append(result)
             
         return results

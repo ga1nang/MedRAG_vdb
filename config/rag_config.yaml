@@ -7,9 +7,8 @@ vector_db:
   type: "qdrant"
   host: "localhost"
   port: 6333
-  collection_name: "Tropical Diseases"
+  collection_name: "tropical_diseases"
   vector_size: 128
-  metric: Distance.COSINE
   url: "http://localhost:6333"
 
 # Retrieval

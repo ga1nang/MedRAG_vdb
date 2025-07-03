@@ -24,39 +24,39 @@ class QdrantManager:
     """
     def __init__(
         self,
-        db_path: str = cfg["paths"]["db_path"],
         collection_name: str = cfg["vector_db"]["collection_name"],
         create_collection: bool = True,
         vector_size: int = 128,
-        metric: Distance = cfg["vector_db"]["COSINE"],
-        url: str = cfg["vector_db"]["url"]
+        metric: Distance = Distance.COSINE,
     ): 
         # Make sure parent dirs exist
-        self.db_path = Path(db_path).expanduser().resolve()
-        self.db_path.mkdir(parents=True, exist_ok=True)
+        # self.db_path = Path(db_path).expanduser().resolve()
+        # self.db_path.mkdir(parents=True, exist_ok=True)
         
         # Init Qdrant "server" in-process
         self.client = QdrantClient(
-            path=str(self.db_path),
-            url = url
-        )
+           host="localhost",
+            grpc_port=6334,
+            prefer_grpc=True, 
+            timeout=600,
+        )        
         self.collection_name = collection_name
         
         # One-time collection creation
         if create_collection and not self.client.collection_exists(collection_name):
             self.client.create_collection(
                 collection_name=collection_name,
-                on_disk_payload=True,
+                on_disk_payload=True,  # store the payload on disk
                 vectors_config=models.VectorParams(
-                    size=vector_size,
-                    distance=metric,
-                    on_disk=True,
+                    size=128,
+                    distance=models.Distance.COSINE,
+                    on_disk=True, # move original vectors to disk
                     multivector_config=models.MultiVectorConfig(
                         comparator=models.MultiVectorComparator.MAX_SIM
                     ),
                     quantization_config=models.BinaryQuantization(
-                        binary=models.BinaryQuantizationConfig(
-                            always_ram=True
+                    binary=models.BinaryQuantizationConfig(
+                        always_ram=True  # keep only quantized vectors in RAM
                         ),
                     ),
                 ),
@@ -70,6 +70,8 @@ class QdrantManager:
         Args:
             data: (List[Dict[str, Any]])
         """
+        print(type(data[0]))
+        print(data[0])
         points = [
             PointStruct(
                 id = uuid.uuid4().int >> 64,
@@ -88,7 +90,7 @@ class QdrantManager:
         
     def search(
         self, 
-        query_vec: np.ndarray | List[float],
+        query_vec: List[float],
         top_k: int = cfg["retrieval_top_k"]
     ) -> List[Any]:
         """

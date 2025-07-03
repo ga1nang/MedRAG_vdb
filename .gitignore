@@ -7,3 +7,4 @@ qdrant_storage
 src/rag/utils/__pycache__
 src/rag/__pycache__
 src/rag/vectordb/__pycache__
+src/medrag_colpali.egg-info

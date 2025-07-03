@@ -53,25 +53,15 @@ class ColPaliManager:
         return ds_np
         
     @spaces.GPU
-    def process_text(self, texts: List[str]):
-        print(f"Processing {len(texts)} texts")
+    def process_text(self, text: str):
+        print(f"Processing {len(text)} texts")
         
-        dataloader = DataLoader(
-            dataset=ListDataset[str](texts),
-            batch_size=1,
-            shuffle=False,
-            collate_fn=lambda x: self.processor.process_queries(x),
-        )
-        
-        qs: List[torch.Tensor] = []
-        for batch_query in dataloader:
-            with torch.no_grad():
-                batch_query = {k: v.to(self.model.device) for k,v in batch_query.items()}
-                embeddings_query = self.model(**batch_query)
-                
-            qs.extend(list(torch.unbind(embeddings_query.to(self.device))))
-        
-        qs_np = [q.float().cpu().numpy() for q in qs]
-        return qs_np
+        with torch.no_grad():
+            batch_query = self.processor.process_queries([text]).to(
+                self.model.device
+            )
+            query_embedding = self.model(**batch_query)
+        multivector_query = query_embedding[0].cpu().float().numpy().tolist()
+        return multivector_query
         
         

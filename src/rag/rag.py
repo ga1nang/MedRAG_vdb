@@ -1,7 +1,7 @@
 import os
 
 from typing import List
-from utils.utils import encode_image
+from rag.utils.utils import encode_image
 from transformers import pipeline
 from dotenv import load_dotenv
 
@@ -22,22 +22,28 @@ class Rag:
             }
         ]
     
-    def get_answer_from_medgemma(self, query: str, images_path: List[str]):
-        # Read the retrieved images
-        images = []
-        for image_path in images_path:
-            image = encode_image(image_path)
-            images.append(image)
-        
-        # 
-        self.message.append(
+    def get_answer_from_medgemma(self, query: str, images_path: List[str]) -> str:
+        # Load images
+        images = [encode_image(p) for p in images_path]    # PIL.Image.Image objects
+
+        # Build the messages list with *image placeholders*
+        messages = [
             {
                 "role": "user",
-                "content": [
-                    {"type": "image", "image": image},
-                    {"type": "text", "text": query}
-                ]
-            },
+                "content": (
+                    [{"type": "image"} for _ in images] +   # one placeholder per image
+                    [{"type": "text", "text": query}]
+                ),
+            }
+        ]
+
+        # Call pipeline (chat mode)
+        outputs = self.pipe(
+            text=messages,
+            images=images,
+            max_new_tokens=1024,          # keep it reasonable
+            return_full_text=False
         )
-        result = self.pipe(self.message, max_new_tokens=8192)
-        return result[0]["generated_text"][-1]['content']
+
+        # Assistant reply is in ["generated_text"]
+        return outputs[0]["generated_text"]
