@@ -1,7 +1,7 @@
 import os
 
 from typing import List
-from rag.utils.utils import encode_image
+from src.rag.utils.utils import encode_image
 from transformers import pipeline
 from dotenv import load_dotenv
 

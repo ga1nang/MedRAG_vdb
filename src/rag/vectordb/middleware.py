@@ -9,10 +9,10 @@ import hashlib
 from pathlib import Path
 from typing import List, Any
 
-from rag.utils.pdf_manager import PdfManager
-from rag.embedders.colpali_manager import ColPaliManager
-from rag.vectordb.qdrant_manager import QdrantManager
-from rag.config import load_config
+from src.rag.utils.pdf_manager import PdfManager
+from src.rag.embedders.colpali_manager import ColPaliManager
+from src.rag.vectordb.qdrant_manager import QdrantManager
+from src.rag.config import load_config
 
 # Load config
 cfg = load_config()

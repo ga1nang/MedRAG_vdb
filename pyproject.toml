@@ -18,4 +18,5 @@ dependencies = [
     "spaces>=0.37.1",
     "stamina>=25.1.0",
     "transformers>=4.51.3",
+    "pydantic==2.10.6",
 ]

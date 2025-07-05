@@ -8,16 +8,19 @@ A minimal Gradio UI that lets a user:
 """
 import gradio as gr
 
-from rag.vectordb.middleware import Middleware
-from rag.rag import Rag
+from vectordb.middleware import Middleware
+from rag import Rag
 
-rag = Rag()
 
 
 class PDFSearchApp:
     def __init__(self):
         self.indexed_docs: dict[int, bool] = {}
         self.current_pdf = None
+        print("Creating Assistant...")
+        self.rag = Rag()
+        print("Creating vectordb...")
+        self.mw = Middleware(1, create_collection=True)
 
     # ---------------- Upload callback ---------------- #
     # inputs=[state, file]  →  parameters (user_id, file)
@@ -26,8 +29,7 @@ class PDFSearchApp:
             return "No file uploaded"
 
         try:
-            mw = Middleware(user_id, create_collection=True)
-            pages = mw.index(id=user_id, pdf_path=file.name, max_pages=20)  # fixed max_pages for now
+            pages = self.mw.index(id=user_id, pdf_path=file.name)  # fixed max_pages for now
             self.indexed_docs[user_id] = True
             return f"Uploaded and indexed {len(pages)} pages."
         except Exception as exc:  # noqa: BLE001
@@ -36,17 +38,14 @@ class PDFSearchApp:
     # ---------------- Search callback --------------- #
     # inputs=[state, query]  →  parameters (user_id, query)
     def search_documents(self, user_id: int, query: str):
-        if not self.indexed_docs.get(user_id):
-            return "Please index documents first", "--"
         if not query:
             return "Please enter a search query", "--"
 
         try:
-            mw = Middleware(user_id, create_collection=False)
-            hits = mw.search([query])[0]          # [(filepath, distance)]
-            best_path, _ = hits[0]
-            answer = rag.get_answer_from_gemini(query, [best_path])
-            return best_path, answer
+            hits = self.mw.search(query)[0]          # [(filepath, distance)]
+            image_paths = [path for path, _ in hits] 
+            answer = self.rag.get_answer_from_medgemma(query=query, images_path=image_paths)
+            return answer
         except Exception as exc: 
             return f"Error during search: {exc}", "--"
 
@@ -56,7 +55,7 @@ def create_ui():
     app = PDFSearchApp()
 
     with gr.Blocks() as demo:
-        user_id_state = gr.State(value=1)
+        user_id = 1
 
         gr.Markdown("# ColPali + Qdrant Demo (quick test)")
 
@@ -67,20 +66,20 @@ def create_ui():
         with gr.Tab("Query"):
             query_box = gr.Textbox(label="Enter query")
             search_btn = gr.Button("Query")
-            image_out = gr.Image(label="Top page")
+            # image_out = gr.Image(label="Top page")
             answer_box = gr.Textbox(interactive=False, label="RAG Response")
 
         # wiring
         file_input.upload(
-            fn=app.upload_and_convert,
-            inputs=[user_id_state, file_input],
+            fn=lambda file: app.upload_and_convert(user_id, file),
+            inputs=[file_input],
             outputs=[status_box],
         )
 
         search_btn.click(
-            fn=app.search_documents,
-            inputs=[user_id_state, query_box],
-            outputs=[image_out, answer_box],
+            fn=lambda query: app.search_documents(user_id, query),
+            inputs=[query_box],
+            outputs=[answer_box],
         )
 
     return demo
@@ -88,4 +87,4 @@ def create_ui():
 
 if __name__ == "__main__":
     ui = create_ui()
-    ui.launch()
+    ui.launch(share=True)

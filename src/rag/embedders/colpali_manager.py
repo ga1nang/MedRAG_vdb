@@ -31,7 +31,7 @@ class ColPaliManager:
         return [Image.open(path).convert("RGB") for path in paths if os.path.exists(path)]
     
     @spaces.GPU
-    def process_images(self, image_paths: List[str], batch_size=5):
+    def process_images(self, image_paths: List[str], batch_size=1):
         print(f"Processing {len(image_paths)} images")
         images = self.get_images(image_paths)
         

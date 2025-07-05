@@ -7,7 +7,7 @@ A minimal wrapper around the qdrant-client SDK providing:
 import uuid
 import numpy as np
 
-from rag.config import load_config
+from src.rag.config import load_config
 from pathlib import Path
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
@@ -56,7 +56,7 @@ class QdrantManager:
                     ),
                     quantization_config=models.BinaryQuantization(
                     binary=models.BinaryQuantizationConfig(
-                        always_ram=True  # keep only quantized vectors in RAM
+                        always_ram=False  # keep only quantized vectors in RAM
                         ),
                     ),
                 ),
