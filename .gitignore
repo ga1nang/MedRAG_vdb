@@ -8,3 +8,4 @@ src/rag/utils/__pycache__
 src/rag/__pycache__
 src/rag/vectordb/__pycache__
 src/medrag_colpali.egg-info
+src/rag/embedders/__pycache__

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Any
 
 from src.rag.utils.pdf_manager import PdfManager
-from src.rag.embedders.colpali_manager import ColPaliManager
+from src.rag.embedders.colpali_manager import ColQwenManager
 from src.rag.vectordb.qdrant_manager import QdrantManager
 from src.rag.config import load_config
 
@@ -23,7 +23,8 @@ class Middleware:
     def __init__(self, user_id: str, create_collection: bool = True):
         # Init manager
         self.pdf_manager = PdfManager()
-        self.colpali_manager = ColPaliManager()
+        # self.colpali_manager = ColPaliManager()
+        self.colqwen_manager = ColQwenManager()
         
         # Create Qdrant fodler
         # qdrant_folder = Path(cfg["paths"]["db_path"])
@@ -51,7 +52,7 @@ class Middleware:
         print(f"  • Saved {len(image_paths)} page images")
         
         # Bacth -> ColPali embeddings
-        vectors = self.colpali_manager.process_images(image_paths)
+        vectors = self.colqwen_manager.process_images(image_paths)
         assert len(vectors) == len(image_paths)
         
         # Wrap for Qdrant
@@ -80,7 +81,7 @@ class Middleware:
         results = []
 
         print(f"  → {query!r}")
-        query_vec = self.colpali_manager.process_text(query)[0]
+        query_vec = self.colqwen_manager.process_text(query)[0]
         result = self.db.search(query_vec, top_k)
         print(f"    ↳ hits: {result}")
         results.append(result)
