@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Any
 
 from src.rag.utils.pdf_manager import PdfManager
-from src.rag.embedders.colpali_manager import ColQwenManager
+from src.rag.embedders.colpali_manager import ColQwenManager_4bit
 from src.rag.vectordb.qdrant_manager import QdrantManager
 from src.rag.config import load_config
 
@@ -24,7 +24,7 @@ class Middleware:
         # Init manager
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
-        self.colqwen_manager = ColQwenManager()
+        self.colqwen_manager = ColQwenManager_4bit()
         
         # Create Qdrant fodler
         # qdrant_folder = Path(cfg["paths"]["db_path"])

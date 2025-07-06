@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from typing import List, cast
 from tqdm import tqdm
 from PIL import Image
+from transformers import BitsAndBytesConfig
 
 
 class ColPaliManager:
@@ -69,6 +70,65 @@ class ColQwenManager:
         self.model = ColQwen2.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
+            device_map=device,
+        ).eval()
+        # Ensure the type is ColQwen2Processor
+        self.processor = cast(
+            ColQwen2Processor,
+            ColQwen2Processor.from_pretrained(model_name)
+        )
+    
+    @spaces.GPU
+    def get_images(self, paths: List[str]) -> List[Image.Image]:
+        return [Image.open(path).convert("RGB") for path in paths if os.path.exists(path)]
+    
+    @spaces.GPU
+    def process_images(self, image_paths: List[str], batch_size=1):
+        print(f"Processing {len(image_paths)} images")
+        images = self.get_images(image_paths)
+        
+        dataloader = DataLoader(
+            dataset=ListDataset[str](images),
+            batch_size=batch_size,
+            shuffle=False,
+            collate_fn=lambda x: self.processor.process_images(x),
+        )
+        
+        ds: List[torch.Tensor] = []
+        for batch_doc in tqdm(dataloader):
+            with torch.no_grad():
+                batch_doc = {k: v.to(self.model.device) for k, v in batch_doc.items()}
+                embeddings_doc = self.model(**batch_doc)
+            ds.extend(list(torch.unbind(embeddings_doc.to(self.device))))
+            
+        ds_np = [d.float().cpu().numpy() for d in ds]
+        return ds_np
+        
+    @spaces.GPU
+    def process_text(self, text: str):
+        print(f"Processing {len(text)} texts")
+        
+        with torch.no_grad():
+            batch_query = self.processor.process_queries([text]).to(
+                self.model.device
+            )
+            query_embedding = self.model(**batch_query)
+        multivector_query = query_embedding[0].cpu().float().numpy().tolist()
+        return multivector_query
+    
+
+class ColQwenManager_4bit:
+    def __init__(self, device="cuda:0", model_name="vidore/colqwen2-v1.0"):
+        bnb_cfg = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+        )
+        self.device = get_torch_device(device)
+        self.model = ColQwen2.from_pretrained(
+            model_name,
+            quantization_config=bnb_cfg,
             device_map=device,
         ).eval()
         # Ensure the type is ColQwen2Processor
