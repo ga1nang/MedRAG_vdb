@@ -1,4 +1,8 @@
 import os
+# These lines must come BEFORE importing torch or transformers
+# os.environ["PYTORCH_ENABLE_SDPA"] = "0"
+# os.environ["FLASH_ATTENTION_FORCE_DISABLE"] = "1"
+import torch
 
 from typing import List
 from src.rag.utils.utils import encode_image
@@ -11,7 +15,12 @@ os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
 
 class Rag:
     def __init__(self):
-        self.pipe = pipeline("image-text-to-text", model="google/medgemma-4b-it", token=hf_token)
+        self.pipe = pipeline(
+            "image-text-to-text", 
+            model="google/medgemma-4b-it", 
+            torch_dtype=torch.bfloat16,
+            token=hf_token
+        )
         self.message = [
             {
                 "role": "system",
@@ -36,6 +45,7 @@ class Rag:
                 ),
             }
         ]
+        print(messages)
 
         # Call pipeline (chat mode)
         outputs = self.pipe(
