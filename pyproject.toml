@@ -29,4 +29,5 @@ dependencies = [
   "stamina>=25.1.0",
   "markupsafe==2.1.5",
   "nltk>=3.9.1",
+  "networkx>=3.4.2",
 ]
