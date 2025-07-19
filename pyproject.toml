@@ -5,29 +5,28 @@ requires-python = ">=3.10"
 
 dependencies = [
   # —— Core stack ——————————————————————————
-  "colpali-engine==0.3.11",           
-  "torch==2.7.1",                      
-  "torchvision==0.22.1",               
-  "torchaudio==2.7.1",                 
-  "bitsandbytes==0.46.1",              
-  "transformers==4.53.1",              
-
+  "colpali-engine==0.3.11",
+  "torch==2.7.1",
+  "torchvision==0.22.1",
+  "torchaudio==2.7.1",
+  "bitsandbytes==0.46.1",
+  "transformers==4.53.1",
   # —— App / infra libs ————————————————
-  "datasets==3.6.0",                   
-  "python-dotenv==1.1.1",              
-  "gradio==5.35.0",                    
-  "huggingface-hub[hf-transfer]==0.33.2",  
-  "ipykernel==6.29.5",                 
-  "matplotlib==3.10.3",                
-  "pdf2image==1.17.0",                 
-  "qdrant-client==1.14.3",            
-  "rich==14.0.0",                      
-  "spaces==0.37.1",                    
-  "stamina==25.1.0",                   
-  "pydantic==2.11.2",                 
-
+  "datasets==3.6.0",
+  "python-dotenv==1.1.1",
+  "gradio==5.35.0",
+  "huggingface-hub[hf-transfer]==0.33.2",
+  "ipykernel==6.29.5",
+  "matplotlib==3.10.3",
+  "pdf2image==1.17.0",
+  "qdrant-client==1.14.3",
+  "rich==14.0.0",
+  "spaces==0.37.1",
+  "stamina==25.1.0",
+  "pydantic==2.11.2",
   # —— Misc utilities (unchanged) ————————
-  "dotenv>=0.9.9",         
-  "stamina>=25.1.0",       
-  "markupsafe==2.1.5"
+  "dotenv>=0.9.9",
+  "stamina>=25.1.0",
+  "markupsafe==2.1.5",
+  "nltk>=3.9.1",
 ]
