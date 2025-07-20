@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import networkx as nx
+from typing import List
+from pandas import DataFrame
 from utils.utils import preprocess_text
 from embedders.bert_manager import BERTManger
 
@@ -72,3 +74,38 @@ class KGManager:
             save_path=save_path
         )
         return {node: emb for node, emb in zip(self.symptom_nodes, embeddings)}
+    
+    # ---------- Public Query APIs ----------
+    def main_get_category_and_level3(self, histories: DataFrame, symptoms: DataFrame, top_n_symptoms: int = 5, top_n_categries: int = 5) -> List:
+        """Main function to return top-n categories for a given participant case."""
+
+        # Extract patient input fields
+        disease_histories = histories
+        disease_symptoms = symptoms
+
+        print(f'disease_histories: {disease_histories}')
+        print(f'disease_symptoms: {disease_symptoms}')
+
+        # Handle missing values
+        disease_histories = '' if pd.isna(disease_histories) else disease_histories
+        disease_symptoms = '' if pd.isna(disease_symptoms) else disease_symptoms
+
+        # Get top-n symptoms based on embeddings
+        def process_symptom_field(field_value, symptom_nodes, symptom_embeddings, n):
+            return self.find_top_n_similar_symptoms(field_value, symptom_nodes, symptom_embeddings, n) if field_value else []
+
+        top_5_history_nodes = process_symptom_field(disease_histories, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms)
+        top_5_symptom_nodes = process_symptom_field(disease_symptoms, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms)
+
+        # Map back to original terms for interpretability
+        top_5_history_nodes_original = self.kg_data.loc[self.kg_data['object_preprocessed'].isin(top_5_history_nodes), 'object'].drop_duplicates()
+        top_5_symptom_nodes_original = self.kg_data.loc[self.kg_data['object_preprocessed'].isin(top_5_symptom_nodes), 'object'].drop_duplicates()
+
+        # Use all matched symptoms to vote on closest category
+        most_similar_category = self.find_closest_category(
+            list(top_5_history_nodes_original) +
+            list(top_5_symptom_nodes_original) +
+            self.categories,
+            top_n_categries
+        )
+        return most_similar_category

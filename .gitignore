@@ -10,3 +10,4 @@ src/rag/vectordb/__pycache__
 src/medrag_colpali.egg-info
 src/rag/embedders/__pycache__
 notebooks/small_test.ipynb
+notebooks/retreival_system.ipynb
