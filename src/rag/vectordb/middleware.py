@@ -59,7 +59,8 @@ class Middleware:
         db_payload = [
             {
                 "colbert_vecs": vectors[i],
-                "filepath": image_paths[i]
+                "filepath": image_paths[i],
+                "original_file": pdf_path
             }
             for i in range(len(image_paths))
         ]
