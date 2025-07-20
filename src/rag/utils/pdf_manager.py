@@ -19,14 +19,15 @@ class PdfManager:
         # Read pdf as images
         images = convert_from_path(pdf_path)
         # Create or clear and recreate folder
-        self.clear_and_recreate_dir(output_folder)
+        # self.clear_and_recreate_dir(output_folder)
+        prev_imgs = len(os.listdir(output_folder))
 
         # Start to save image
         num_of_imgs = len(images)
         num_of_processed_imgs = 0
 
         for i, image in enumerate(images):
-            full_save_path = f"{output_folder}/page_{i+1}.png"
+            full_save_path = f"{output_folder}/page_{i+prev_imgs}.png"
             image.save(full_save_path, "PNG")
             num_of_processed_imgs += 1
         
