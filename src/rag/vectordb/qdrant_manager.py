@@ -70,13 +70,13 @@ class QdrantManager:
         Args:
             data: (List[Dict[str, Any]])
         """
-        print(type(data[0]))
-        print(data[0])
+        # print(type(data[0]))
+        # print(data[0])
         points = [
             PointStruct(
                 id = uuid.uuid4().int >> 64,
                 vector=record["colbert_vecs"],
-                payload={"filepath": record["filepath"]},
+                payload={"filepath": record["filepath"], "original_file": record['original_file']},
             )
             for record in data
         ]
@@ -106,5 +106,12 @@ class QdrantManager:
             limit=top_k,
             with_payload=True,
         )
-        return [(result.payload["filepath"], result.score) for result in results]
+        return [
+            {
+                "filepath": result.payload["filepath"],
+                "original_file": result.payload["original_file"],
+                "score": result.score,
+            }
+            for result in results
+        ]
         
