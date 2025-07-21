@@ -339,3 +339,12 @@ class KGManager:
         top_n_categories = [sorted_categories[i][0] for i in range(top_n)]
         return top_n_categories
 
+    def get_diagnoses_for_symptom(self, symptom):
+        """Find all diagnoses (neighbor nodes) connected to a symptom node."""
+        diagnoses = []
+        if symptom in self.G:
+            for neighbor in self.G.neighbors(symptom):
+                edge_data = self.G.get_edge_data(neighbor, symptom)
+                if edge_data and 'relation' in edge_data and edge_data['relation'] != 'is_a':
+                    diagnoses.append(neighbor)
+        return diagnoses
