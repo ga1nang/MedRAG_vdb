@@ -66,19 +66,20 @@ class KGManager:
         )
         return self.kg_data['object_preprocessed'].dropna().unique().tolist()
 
-    def _load_or_generate_embeddings(self) -> dict:
-        """Loads precomputed embeddings if available, otherwise generates and saves them."""
+    def _load_or_generate_embeddings(self) -> dict[str, np.ndarray]:
         os.makedirs(self.embedding_save_dir, exist_ok=True)
-        save_path = os.path.join(self.embedding_save_dir, "symptom_embeddings")
+        path = os.path.join(self.embedding_save_dir, "symptom_embeddings.npy")
 
-        # if os.path.exists(save_path):
-        #     return self.bert_manager.load_embeddings(save_path)
+        if os.path.exists(path):
+            arr = np.load(path, allow_pickle=True)
+            return dict(zip(self.symptom_nodes, arr))
 
-        embeddings = self.bert_manager.get_symptom_embeddings(
-            symptom_nodes=self.symptom_nodes,
-            save_path=save_path
-        )
-        return {node: emb for node, emb in zip(self.symptom_nodes, embeddings)}
+        vecs = [
+            self.bert_manager.generate_embedding(node).squeeze(0).cpu().numpy()
+            for node in self.symptom_nodes
+        ]
+        np.save(path, np.array(vecs, dtype=object))       
+        return dict(zip(self.symptom_nodes, vecs))
     
     def _load_level_3_to_level_2(self):
         return {
@@ -254,7 +255,7 @@ class KGManager:
         if not query:
             return []
 
-        # ① preprocess & embed query
+        # preprocess & embed query
         q_vec = (
             self.bert_manager.generate_embedding(preprocess_text(query))
             .squeeze(0)           # (1, d) ➜ (d,)
@@ -263,15 +264,15 @@ class KGManager:
             .reshape(1, -1)       # (1, d) for sklearn
         )
 
-        # ② build (n_symptoms, d) matrix **matching node order**
+        # build (n_symptoms, d) matrix **matching node order**
         sym_matrix = np.vstack(
             [symptom_embeddings[node].squeeze(0).cpu().numpy() for node in symptom_nodes]
         )
 
-        # ③ cosine similarity
+        # cosine similarity
         sims = cosine_similarity(q_vec, sym_matrix).flatten()
 
-        # ④ pick top‑N ≥ 0.5
+        # pick top‑N ≥ 0.5
         top_indices = sims.argsort()[::-1]
         chosen, seen = [], set()
         for idx in top_indices:
