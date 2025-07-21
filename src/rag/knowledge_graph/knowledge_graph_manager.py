@@ -250,32 +250,32 @@ class KGManager:
         return most_similar_category
     
     def find_top_n_similar_symptoms(
-        self, query: str, symptom_nodes: List[str], symptom_embeddings: dict, n: int = 5
-    ) -> List[str]:
+            self, query, symptom_nodes, symptom_embeddings, n=5
+    ) -> list[str]:
         if not query:
             return []
 
-        # preprocess & embed query
+        # 1. query vector (1, d)
         q_vec = (
             self.bert_manager.generate_embedding(preprocess_text(query))
-            .squeeze(0)           # (1, d) ➜ (d,)
+            .squeeze()              # drops any singleton dims
             .cpu()
             .numpy()
-            .reshape(1, -1)       # (1, d) for sklearn
+            .reshape(1, -1)
         )
 
-        # build (n_symptoms, d) matrix **matching node order**
+        # 2. symptom matrix (n_symptoms, d)
         sym_matrix = np.vstack(
-            [symptom_embeddings[node].squeeze(0).cpu().numpy() for node in symptom_nodes]
+            [np.asarray(symptom_embeddings[node]).reshape(-1) for node in symptom_nodes]
         )
 
-        # cosine similarity
+        # 3. cosine similarity
         sims = cosine_similarity(q_vec, sym_matrix).flatten()
 
-        # pick top‑N ≥ 0.5
-        top_indices = sims.argsort()[::-1]
+        # 4. pick top‑N ≥ 0.5
+        top_idxs = sims.argsort()[::-1]
         chosen, seen = [], set()
-        for idx in top_indices:
+        for idx in top_idxs:
             if sims[idx] > 0.5 and symptom_nodes[idx] not in seen:
                 chosen.append(symptom_nodes[idx])
                 seen.add(symptom_nodes[idx])
