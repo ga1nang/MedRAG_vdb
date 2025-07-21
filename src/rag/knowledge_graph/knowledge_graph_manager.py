@@ -70,8 +70,8 @@ class KGManager:
         os.makedirs(self.embedding_save_dir, exist_ok=True)
         save_path = os.path.join(self.embedding_save_dir, "symptom_embeddings")
 
-        if os.path.exists(save_path):
-            return self.bert_manager.load_embeddings(save_path)
+        # if os.path.exists(save_path):
+        #     return self.bert_manager.load_embeddings(save_path)
 
         embeddings = self.bert_manager.get_symptom_embeddings(
             symptom_nodes=self.symptom_nodes,
