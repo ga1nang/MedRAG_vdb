@@ -282,3 +282,60 @@ class KGManager:
                 if len(chosen) == n:
                     break
         return chosen
+    
+    def find_closest_category(self, top_symptoms, categories, top_n):
+        """Return top-n closest categories based on symptom-diagnosis-category paths."""
+
+        # Edge case: no symptoms
+        if isinstance(top_symptoms, pd.Series) and top_symptoms.empty:
+            return None
+
+        # Initialize votes for each category (eL2)
+        category_votes = {category: 0 for category in categories}
+
+        # Remove duplicate symptoms
+        top_symptoms = list(set(top_symptoms))
+
+        for symptom in top_symptoms:
+            # If symptom not in graph, skip
+            if symptom not in self.G:
+                continue
+
+            # Step 1: Retrieve diseases (eL3) connected to the symptom tᵢ
+            diagnosis_nodes = get_diagnoses_for_symptom(symptom)
+
+            for diagnosis in diagnosis_nodes:
+                for single_diagnosis in diagnosis.split(','):  # handle multiple names
+                    single_diagnosis = single_diagnosis.strip().replace(' ', '_').lower()
+
+                    if single_diagnosis not in self.G:
+                        continue
+
+                    # Step 2: Find closest category (eL2) for this diagnosis
+                    min_distance = float('inf')
+                    closest_category = None
+
+                    for category in categories:
+                        if category not in self.G:
+                            continue
+
+                        try:
+                            # Compute shortest path from eL3 to eL2
+                            distance = nx.shortest_path_length(G, source=single_diagnosis, target=category)
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_category = category
+                        except nx.NetworkXNoPath:
+                            continue
+
+                    # Step 3: Vote for closest category
+                    if closest_category:
+                        category_votes[closest_category] += 1
+
+        # Step 4: Sort categories by number of votes (∑ χ(tᵢ, eL2ⱼ))
+        sorted_categories = sorted(category_votes.items(), key=lambda x: x[1], reverse=True)
+
+        # Step 5: Return top-N most voted categories
+        top_n_categories = [sorted_categories[i][0] for i in range(top_n)]
+        return top_n_categories
+
