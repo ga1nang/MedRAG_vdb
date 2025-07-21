@@ -196,7 +196,6 @@ class KGManager:
                             merged_info[(subject, relation)] = [obj]
 
             # Convert merged triples into readable sentence strings
-            additional_info = []
             for (subject, relation), objects in merged_info.items():
                 sentence = f"{subject} {relation} {', '.join(objects)}"
                 additional_info.append(sentence)
@@ -243,7 +242,7 @@ class KGManager:
         # Use all matched symptoms to vote on closest category
         most_similar_category = self.find_closest_category(
             list(top_5_history_nodes_original) +
-            list(top_5_symptom_nodes_original) +
+            list(top_5_symptom_nodes_original),
             self.categories,
             top_n_categories
         )
@@ -302,7 +301,7 @@ class KGManager:
                 continue
 
             # Step 1: Retrieve diseases (eL3) connected to the symptom tᵢ
-            diagnosis_nodes = get_diagnoses_for_symptom(symptom)
+            diagnosis_nodes = self.get_diagnoses_for_symptom(symptom)
 
             for diagnosis in diagnosis_nodes:
                 for single_diagnosis in diagnosis.split(','):  # handle multiple names
@@ -321,7 +320,7 @@ class KGManager:
 
                         try:
                             # Compute shortest path from eL3 to eL2
-                            distance = nx.shortest_path_length(G, source=single_diagnosis, target=category)
+                            distance = nx.shortest_path_length(self.G, source=single_diagnosis, target=category)
                             if distance < min_distance:
                                 min_distance = distance
                                 closest_category = category
