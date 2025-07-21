@@ -250,7 +250,7 @@ class KGManager:
         # Preprocess and embed the query
         query_preprocessed = preprocess_text(query)
         query_embedding = self.bert_manager.generate_embedding(query_preprocessed)
-        if not query_embedding:
+        if query_embedding is None:
             return []
 
         # Truncate in case of mismatch between embedding and symptom count
