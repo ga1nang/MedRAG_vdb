@@ -6,11 +6,13 @@ from colpali_engine.models import ColPali, ColQwen2, ColQwen2Processor, ColIdefi
 from colpali_engine.models.paligemma.colpali.processing_colpali import ColPaliProcessor
 from colpali_engine.utils.torch_utils import ListDataset, get_torch_device
 from torch.utils.data import DataLoader
-from typing import List, cast
+from typing import List, cast, Tuple
 from tqdm import tqdm
 from PIL import Image
 from transformers import BitsAndBytesConfig
+from src.rag.config import load_config
 
+cfg = load_config()
 
 class ColPaliManager:
     def __init__(self, quantized: bool, device: str = "cuda", model_name: str = "vidore/colpali-v1.3"):
@@ -80,7 +82,7 @@ class ColPaliManager:
         return images
 
     @spaces.GPU
-    def process_images(self, image_paths: List[str], batch_size=1):
+    def process_images(self, image_paths: List[str], batch_size=cfg["vit_batch_size"]):
         print(f"Processing {len(image_paths)} images")
         images = self.get_images(image_paths)
 
