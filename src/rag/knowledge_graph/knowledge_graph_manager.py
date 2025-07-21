@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import networkx as nx
+import numpy as np
 from typing import List, Any
 from pandas import DataFrame
 from sklearn.metrics.pairwise import cosine_similarity
@@ -247,34 +248,36 @@ class KGManager:
         )
         return most_similar_category
     
-    def find_top_n_similar_symptoms(self, query, symptom_nodes, symptom_embeddings, n):
-        """Find top-N similar symptoms from query using cosine similarity."""
-        if pd.isna(query) or not query:
+    def find_top_n_similar_symptoms(
+        self, query: str, symptom_nodes: List[str], symptom_embeddings: dict, n: int = 5
+    ) -> List[str]:
+        if not query:
             return []
 
-        # Preprocess and embed the query
-        query_preprocessed = preprocess_text(query)
-        query_embedding = self.bert_manager.generate_embedding(query_preprocessed)
-        if query_embedding is None:
-            return []
+        # ① preprocess & embed query
+        q_vec = (
+            self.bert_manager.generate_embedding(preprocess_text(query))
+            .squeeze(0)           # (1, d) ➜ (d,)
+            .cpu()
+            .numpy()
+            .reshape(1, -1)       # (1, d) for sklearn
+        )
 
-        # Truncate in case of mismatch between embedding and symptom count
-        if len(symptom_embeddings) > len(symptom_nodes):
-            symptom_embeddings = symptom_embeddings[:len(symptom_nodes)]
+        # ② build (n_symptoms, d) matrix **matching node order**
+        sym_matrix = np.vstack(
+            [symptom_embeddings[node].squeeze(0).cpu().numpy() for node in symptom_nodes]
+        )
 
-        # Calculate cosine similarity
-        similarities = cosine_similarity([query_embedding], symptom_embeddings).flatten()
+        # ③ cosine similarity
+        sims = cosine_similarity(q_vec, sym_matrix).flatten()
 
-        # Select top-n unique symptoms with threshold > 0.5
-        top_n_symptoms = []
-        unique_symptoms = set()
-        top_n_indices = similarities.argsort()[::-1]
-
-        for i in top_n_indices:
-            if similarities[i] > 0.5 and symptom_nodes[i] not in unique_symptoms:
-                top_n_symptoms.append(symptom_nodes[i])
-                unique_symptoms.add(symptom_nodes[i])
-            if len(top_n_symptoms) == n:
-                break
-
-        return top_n_symptoms
+        # ④ pick top‑N ≥ 0.5
+        top_indices = sims.argsort()[::-1]
+        chosen, seen = [], set()
+        for idx in top_indices:
+            if sims[idx] > 0.5 and symptom_nodes[idx] not in seen:
+                chosen.append(symptom_nodes[idx])
+                seen.add(symptom_nodes[idx])
+                if len(chosen) == n:
+                    break
+        return chosen
