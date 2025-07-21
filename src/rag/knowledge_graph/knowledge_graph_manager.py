@@ -147,20 +147,11 @@ class KGManager:
 
     
     # ---------- Public Query APIs ----------
-    def get_additional_info_from_level_2(self, kg_path, histories, symtoms, top_n_categries, top_n_symptoms):
+    def get_additional_info_from_level_2(self, histories, symtoms, top_n_categries, top_n_symptoms):
         """
         Given a participant ID, this function identifies the most relevant Level 2 category (eL2_s)
         and retrieves knowledge graph triples (eL3, relation, eL4) associated with that category.
         These triples are then formatted as strings for use in LLM reasoning prompts.
-
-        Parameters:
-        - participant_no (int): ID of the participant/patient
-        - kg_path (str): Path to the knowledge graph Excel file
-        - top_n (int): Number of top categories to retrieve
-        - match_n (int): Number of features to match during upward traversal
-
-        Returns:
-        - str: A string of triples representing relevant knowledge from the KG
         """
 
         # Run upward traversal to get top-n most relevant Level 2 categories
