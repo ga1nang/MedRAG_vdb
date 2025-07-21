@@ -4,8 +4,8 @@ import networkx as nx
 from typing import List, Any
 from pandas import DataFrame
 from sklearn.metrics.pairwise import cosine_similarity
-from utils.utils import preprocess_text
-from embedders.bert_manager import BERTManger
+from src.rag.utils.utils import preprocess_text
+from src.rag.embedders.bert_manager import BERTManger
 
 class KGManager:
     def __init__(self, knowledge_graph_path: str, embedding_save_dir: str = "data/processed/symtom_embeddings"):
