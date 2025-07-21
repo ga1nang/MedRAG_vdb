@@ -24,7 +24,7 @@ class Middleware:
         # Init manager
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
-        self.colspali_manager = ColPaliManager(model_name=model_name, quantized=quantized)
+        self.colpali_manager = ColPaliManager(model_name=model_name, quantized=quantized)
         
         # Create Qdrant fodler
         # qdrant_folder = Path(cfg["paths"]["db_path"])
@@ -52,7 +52,7 @@ class Middleware:
         print(f"  • Saved {len(image_paths)} page images")
         
         # Bacth -> ColPali embeddings
-        vectors = self.colspali_manager.process_images(image_paths)
+        vectors = self.colpali_manager.process_images(image_paths)
         assert len(vectors) == len(image_paths)
         
         # Wrap for Qdrant
@@ -82,7 +82,7 @@ class Middleware:
         results = []
 
         print(f"  → {query!r}")
-        query_vec = self.colspali_manager.process_text(query)[0]
+        query_vec = self.colpali_manager.process_text(query)[0]
         result = self.db.search(query_vec, top_k)
         print(f"    ↳ hits: {result}")
         results.append(result)
