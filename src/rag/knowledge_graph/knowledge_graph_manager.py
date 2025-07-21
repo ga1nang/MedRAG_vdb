@@ -8,7 +8,7 @@ from src.rag.utils.utils import preprocess_text
 from src.rag.embedders.bert_manager import BERTManger
 
 class KGManager:
-    def __init__(self, knowledge_graph_path: str, embedding_save_dir: str = "data/processed/symtom_embeddings"):
+    def __init__(self, knowledge_graph_path: str, embedding_save_dir: str = "data/processed"):
         """
         Knowledge Graph Manager for loading, processing, and querying the medical KG.
 
