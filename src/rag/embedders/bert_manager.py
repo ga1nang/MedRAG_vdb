@@ -1,7 +1,7 @@
 import torch
 import os
-import tqdm
 import numpy as np
+from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
 
 class BERTManger:

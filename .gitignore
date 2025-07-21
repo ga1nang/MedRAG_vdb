@@ -12,3 +12,4 @@ src/rag/embedders/__pycache__
 notebooks/small_test.ipynb
 notebooks/retreival_system.ipynb
 config/rag_config.yaml
+src/rag/knowledge_graph/__pycache__
