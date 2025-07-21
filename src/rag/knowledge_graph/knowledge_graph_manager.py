@@ -208,26 +208,31 @@ class KGManager:
         print("Additional Info:", final_info)
         return final_info
 
-    def main_get_category_and_level3(self, histories: DataFrame, symptoms: DataFrame, top_n_symptoms: int = 5, top_n_categries: int = 5) -> List:
-        """Main function to return top-n categories for a given participant case."""
+    def main_get_category_and_level3(
+        self,
+        histories: List[str] | str,
+        symptoms: List[str] | str,
+        top_n_symptoms: int = 5,
+        top_n_categories: int = 5,
+    ) -> List[str]:
+        # ① Lists ➜ one concatenated string
+        if isinstance(histories, (list, tuple, set)):
+            disease_histories = " ".join(histories)
+        else:
+            disease_histories = histories or ""
 
-        # Extract patient input fields
-        disease_histories = histories
-        disease_symptoms = symptoms
+        if isinstance(symptoms, (list, tuple, set)):
+            disease_symptoms = " ".join(symptoms)
+        else:
+            disease_symptoms = symptoms or ""
 
-        print(f'disease_histories: {disease_histories}')
-        print(f'disease_symptoms: {disease_symptoms}')
-
-        # Handle missing values
-        disease_histories = '' if pd.isna(disease_histories) else disease_histories
-        disease_symptoms = '' if pd.isna(disease_symptoms) else disease_symptoms
-
-        # Get top-n symptoms based on embeddings
-        def process_symptom_field(field_value, symptom_nodes, symptom_embeddings, n):
-            return self.find_top_n_similar_symptoms(field_value, symptom_nodes, symptom_embeddings, n) if field_value else []
-
-        top_5_history_nodes = process_symptom_field(disease_histories, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms)
-        top_5_symptom_nodes = process_symptom_field(disease_symptoms, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms)
+        # ② Get top‑N KG symptom nodes
+        top_5_history_nodes = self.find_top_n_similar_symptoms(
+            disease_histories, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms
+        )
+        top_5_symptom_nodes = self.find_top_n_similar_symptoms(
+            disease_symptoms,  self.symptom_nodes, self.symptom_embeddings, top_n_symptoms
+        )
 
         # Map back to original terms for interpretability
         top_5_history_nodes_original = self.kg_data.loc[self.kg_data['object_preprocessed'].isin(top_5_history_nodes), 'object'].drop_duplicates()
@@ -238,7 +243,7 @@ class KGManager:
             list(top_5_history_nodes_original) +
             list(top_5_symptom_nodes_original) +
             self.categories,
-            top_n_categries
+            top_n_categories
         )
         return most_similar_category
     
