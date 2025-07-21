@@ -1,8 +1,9 @@
 import os
 import pandas as pd
 import networkx as nx
-from typing import List
+from typing import List, Any
 from pandas import DataFrame
+from sklearn.metrics.pairwise import cosine_similarity
 from utils.utils import preprocess_text
 from embedders.bert_manager import BERTManger
 
@@ -109,3 +110,35 @@ class KGManager:
             top_n_categries
         )
         return most_similar_category
+    
+    def find_top_n_similar_symptoms(self, query, symptom_nodes, symptom_embeddings, n):
+        """Find top-N similar symptoms from query using cosine similarity."""
+        if pd.isna(query) or not query:
+            return []
+
+        # Preprocess and embed the query
+        query_preprocessed = preprocess_text(query)
+        query_embedding = self.bert_manager.generate_embedding(query_preprocessed)
+        if not query_embedding:
+            return []
+
+        # Truncate in case of mismatch between embedding and symptom count
+        if len(symptom_embeddings) > len(symptom_nodes):
+            symptom_embeddings = symptom_embeddings[:len(symptom_nodes)]
+
+        # Calculate cosine similarity
+        similarities = cosine_similarity([query_embedding], symptom_embeddings).flatten()
+
+        # Select top-n unique symptoms with threshold > 0.5
+        top_n_symptoms = []
+        unique_symptoms = set()
+        top_n_indices = similarities.argsort()[::-1]
+
+        for i in top_n_indices:
+            if similarities[i] > 0.5 and symptom_nodes[i] not in unique_symptoms:
+                top_n_symptoms.append(symptom_nodes[i])
+                unique_symptoms.add(symptom_nodes[i])
+            if len(top_n_symptoms) == n:
+                break
+
+        return top_n_symptoms
