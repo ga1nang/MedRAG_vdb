@@ -6,7 +6,6 @@ Glue code that ties together:
 - QdrantManager -> stores & searches vectors
 """
 
-import hashlib
 from pathlib import Path
 from typing import List, Any
 
@@ -85,12 +84,14 @@ class Middleware:
         from vector database and knowledge graph.
         """    
         print(f"[Middleware] Received query/queries")
+        print(f"Query: {query!r}")
         # Retrieve from vector database
         results_vectordb = self._search_vectordb(query=query, top_k=top_k)
         # Retrieve from knowledge graph
+        results_kg = self._search_knowledge_graph(query=query, top_k=top_k)
 
 
-        return results_vectordb
+        return results_vectordb, results_kg
     
     def _search_vectordb(
             self,
@@ -100,15 +101,40 @@ class Middleware:
         """
         Embed each query with ColPali's text encoder, 
         then fetch top-k image pages from vector database.
-        """   
+        """ 
+        print("--------------------------------------------------------------------------------")
         print(f"Searching in vector database")
         results = []
 
-        print(f"Query: {query!r}")
         query_vec = self.colpali_manager.process_text(query)[0]
         result = self.db.search(query_vec, top_k)
         print(f"Relevant document from vector database: {result}")
         results.append(result)
-            
+        print("--------------------------------------------------------------------------------")
+        return results
+    
+    def _search_knowledge_graph(
+            self,
+            query: str,
+            top_k: int,
+    ) -> str:
+        """
+        Retrive relevant information from Knowledge Graph
+        """
+        print("--------------------------------------------------------------------------------")
+        print("Searching in Knowledge Graph")
+        # Feature decomposition the query
+        features = self.rag.feature_decomposition(query=query)
+        histories = features["history"]
+        symptoms = features["symptoms"]
+        # Retrieve relevant info from KG
+        results = self.kg_manager.get_additional_info_from_level_2(
+            histories=histories,
+            symtoms=symptoms,
+            top_n_categries=top_k,
+            top_n_symptoms=top_k,
+        )
+        print(f"Relevant information from Knowledge Graph: \n{results}")
+        print("--------------------------------------------------------------------------------")
         return results
     
