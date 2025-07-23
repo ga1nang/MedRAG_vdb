@@ -3,8 +3,11 @@ import os
 # os.environ["PYTORCH_ENABLE_SDPA"] = "0"
 # os.environ["FLASH_ATTENTION_FORCE_DISABLE"] = "1"
 import torch
+import re
+import json
+import warnings
 
-from typing import List
+from typing import List, Dict, Optional
 from src.rag.utils.utils import encode_image
 from transformers import pipeline
 from dotenv import load_dotenv
@@ -19,7 +22,8 @@ class Rag:
             "image-text-to-text", 
             model="google/medgemma-4b-it", 
             torch_dtype=torch.bfloat16,
-            token=hf_token
+            token=hf_token,
+            device_map="auto"
         )
         self.message = [
             {
@@ -45,7 +49,7 @@ class Rag:
                 ),
             }
         ]
-        print(messages)
+        messages = self.message + messages
 
         # Call pipeline (chat mode)
         outputs = self.pipe(
@@ -57,3 +61,99 @@ class Rag:
 
         # Assistant reply is in ["generated_text"]
         return outputs[0]["generated_text"]
+    
+    def feature_decomposition(
+        self,
+        query: str,
+        images_path: Optional[List[str]] = None,
+        max_new_tokens: int = 256,
+    ) -> Dict[str, List[str]]:
+        """
+        Returns a dict with two keys:
+            - 'history':  list of past or background conditions
+            - 'symptoms': list of current, observable findings
+
+        The LLM is asked to output *strict JSON*. We post‑process and
+        normalise everything to slowercase, plain words; no punctuation for direct KG ingestion.
+        """
+        images_path = images_path or []
+
+        # ---------- 1. prepare inputs ---------- #
+        images_path = images_path or []
+        images = [encode_image(p) for p in images_path] if images_path else []
+
+        messages = self._build_chat(query, images)
+        # ---------- 2. call the model ---------- #
+        raw = self.pipe(
+            text=messages,
+            images=images,
+            max_new_tokens=max_new_tokens,
+            return_full_text=False
+        )[0]["generated_text"]
+        # ---------- 3. post‑process ---------- #
+        try:
+            result = self._parse_json(raw)
+        except (json.JSONDecodeError, ValueError):
+            warnings.warn("JSON parse failed – retrying with stricter prompt")
+            messages[0]["content"][0]["text"] += (
+                "\nIf nothing is present, return: {\"history\": [], \"symptoms\": []}"
+            )
+            raw = self.pipe(
+                messages=messages,
+                images=images if images else None,
+                max_new_tokens=max_new_tokens,
+                return_full_text=False,
+            )[0]["generated_text"]
+            result = self._parse_json(raw)
+        # ---------- 4. normalise + deduplicate ---------- #
+        return {
+            "history":  self._normalise(result.get("history",  [])),
+            "symptoms": self._normalise(result.get("symptoms", [])),
+        }
+    
+    def _build_chat(self, query: str, images):
+        """
+        Returns a list‑of‑dicts in the HuggingFace chat format.
+        If `images` is empty, no image placeholders are inserted.
+        """
+        sys_msg = {
+            "role": "system",
+            "content": [{"type": "text", "text": self._load_feature_decomposition_prompt()}],
+        }
+        user_content = [{"type": "text", "text": query}]
+        if images:                                              # only add placeholders if any
+            user_content = [{"type": "image"} for _ in images] + user_content
+        return [sys_msg, {"role": "user", "content": user_content}]
+    
+    def _load_feature_decomposition_prompt(self) -> str:
+        return (
+            "You are an expert clinical scribe.  "
+            "From the USER text below, identify:\n"
+            "  • Relevant *medical history* items (chronic diseases, past infections, surgeries, risk factors).\n"
+            "  • Current *symptoms or signs* (subjective complaints, objective findings).\n\n"
+            "Return *ONLY* valid JSON with two arrays: "
+            '{"history": [...], "symptoms": [...]}  '
+            "Use lowercase, plain words; no punctuation, no explanations."
+        )
+    
+    def _parse_json(self, payload: str) -> Dict[str, List[str]]:
+            # strip code‑block fencing if the model wrapped output in ```json
+            cleaned = re.sub(r"^```(?:json)?|```$", "", payload.strip(), flags=re.I | re.S)
+            return json.loads(cleaned)
+
+    def _normalise(self, seq: List[str]) -> List[str]:
+        """
+        • Lower‑cases
+        • Removes punctuation / symbols
+        • Collapses multiple spaces to one
+        • Strips leading / trailing spaces
+        • Deduplicates and returns an alphabetically‑sorted list
+        """
+        cleaned = (
+            re.sub(r"\s+", " ",                       # collapse whitespace
+                re.sub(r"[^\w\s]", " ", item))     # strip punctuation
+            .strip()
+            .lower()
+            for item in seq if item.strip()
+        )
+        return sorted(set(cleaned))
