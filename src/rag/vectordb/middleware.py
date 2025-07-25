@@ -22,12 +22,12 @@ cfg = load_config()
 class Middleware:
     """Main entry-point for index() and search() used by the app"""
     
-    def __init__(self, user_id: str, model_name: str, quantized: bool, create_collection: bool = True):
+    def __init__(self, kg_path: str, model_name: str, quantized: bool, create_collection: bool = True, enable_rag: bool = False):
         # Init manager
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
         self.colpali_manager = ColPaliManager(model_name=model_name, quantized=quantized)
-        self.kg_manager = KGManager("data/processed/knowledge graph of DDXPlus.xlsx", 'data/processed')
+        self.kg_manager = KGManager(kg_path, 'data/processed')
         
         # Create Qdrant fodler
         # qdrant_folder = Path(cfg["paths"]["db_path"])
@@ -40,7 +40,8 @@ class Middleware:
             create_collection=create_collection,
         )
         # Initilize LLM backbone
-        self.rag = Rag()
+        if enable_rag:
+            self.rag = Rag()
         
     def index(
         self,
@@ -88,8 +89,7 @@ class Middleware:
         # Retrieve from vector database
         results_vectordb = self._search_vectordb(query=query, top_k=top_k)
         # Retrieve from knowledge graph
-        results_kg = self._search_knowledge_graph(query=query, top_k=top_k)
-
+        results_kg = self._search_knowledge_graph(query=query, top_k=3)
 
         return results_vectordb, results_kg
     
@@ -104,14 +104,12 @@ class Middleware:
         """ 
         print("--------------------------------------------------------------------------------")
         print(f"Searching in vector database")
-        results = []
 
         query_vec = self.colpali_manager.process_text(query)[0]
         result = self.db.search(query_vec, top_k)
         print(f"Relevant document from vector database: {result}")
-        results.append(result)
         print("--------------------------------------------------------------------------------")
-        return results
+        return result
     
     def _search_knowledge_graph(
             self,
@@ -138,3 +136,6 @@ class Middleware:
         print("--------------------------------------------------------------------------------")
         return results
     
+    def get_answer_from_medgemma(self, query: str, images_path: List[str], kg_info: str) -> str:
+        query = f"{query}.\n These images are relevant document retreived from vector database. And these are relevant information retrieved from knowledge graph: {kg_info}"
+        return self.rag.get_answer_from_medgemma(query, images_path)
