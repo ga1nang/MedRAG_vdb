@@ -14,7 +14,7 @@ class PdfManager:
 
         os.makedirs(output_folder)
 
-    def save_images(self, id: int, pdf_path: str) -> list[str]:
+    def save_images(self, id: str, pdf_path: str) -> list[str]:
         output_folder = f"data/processed/{id}/"
         # Read pdf as images
         images = convert_from_path(pdf_path)
