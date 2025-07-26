@@ -127,13 +127,35 @@ class Rag:
     
     def _load_feature_decomposition_prompt(self) -> str:
         return (
-            "You are an expert clinical scribe.  "
-            "From the USER text below, identify:\n"
-            "  • Relevant *medical history* items (chronic diseases, past infections, surgeries, risk factors).\n"
-            "  • Current *symptoms or signs* (subjective complaints, objective findings).\n\n"
-            "Return *ONLY* valid JSON with two arrays: "
-            '{"history": [...], "symptoms": [...]}  '
-            "Use lowercase, plain words; no punctuation, no explanations."
+            "You are an expert clinical scribe and medical language model. "
+            "Your task is to extract structured medical features from the USER text. "
+            "Follow the instructions below EXACTLY. Any deviation will result in strict penalties.\n\n"
+            "1. Identify and separate ONLY two types of information:\n"
+            "   - 'history': past medical conditions (chronic diseases, prior infections, surgeries, lifestyle factors, risk factors).\n"
+            "   - 'symptoms': current issues (patient-reported complaints, objective clinical signs, abnormal findings).\n\n"
+            "2. Your response MUST be STRICTLY valid JSON, following these rules:\n"
+            "   - The JSON must have EXACTLY this structure: {\"history\": [...], \"symptoms\": [...]}.\n"
+            "   - Use ONLY double quotes for keys and string values.\n"
+            "   - Each array item must be a lowercase, plain word or phrase with no punctuation.\n"
+            "   - NO extra text, NO explanations, NO reasoning, NO markdown, and NO code fences.\n"
+            "   - If no history or symptoms are present, return EXACTLY: {\"history\": [], \"symptoms\": []}.\n"
+            "   - The JSON must be complete, well-formed, and can be parsed directly by a JSON parser.\n\n"
+            "3. STRICT PENALTY: If your response contains anything other than valid JSON in the exact format described, "
+            "it will be considered a critical failure. You MUST comply with these rules in every case.\n\n"
+            "Correct Examples:\n"
+            "Example 1:\n"
+            "{\"history\": [\"hypertension\", \"smoking\"], \"symptoms\": [\"shortness of breath\", \"dizziness\"]}\n\n"
+            "Example 2:\n"
+            "{\"history\": [], \"symptoms\": [\"fever\", \"rash\", \"joint pain\"]}\n\n"
+            "Example 3:\n"
+            "{\"history\": [\"diabetes\", \"kidney transplant\"], \"symptoms\": [\"abdominal pain\"]}\n\n"
+            "Example 4 (empty):\n"
+            "{\"history\": [], \"symptoms\": []}\n\n"
+            "Wrong (will be penalized):\n"
+            "```json\n{\"history\": [\"diabetes\"], \"symptoms\": [\"fever\"]}\n```\n"
+            "or adding any explanations like 'the patient has diabetes'.\n\n"
+            "Now, read the USER text carefully and respond ONLY with the JSON object as specified. "
+            "Do NOT include any extra characters or commentary."
         )
     
     def _parse_json(self, payload: str) -> Dict[str, List[str]]:
