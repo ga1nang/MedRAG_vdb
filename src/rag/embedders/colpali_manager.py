@@ -67,6 +67,18 @@ class ColPaliManager:
                 ColIdefics3Processor.from_pretrained(model_name)
             )
 
+        elif model_name == "vidore/colSmol-256M":
+            self.model = ColIdefics3.from_pretrained(
+                model_name,
+                torch_dtype=None if quantized else torch.bfloat16,
+                device_map=device,
+                quantization_config=bnb_cfg,
+            ).eval()
+            self.processor = cast(
+                ColIdefics3Processor,
+                ColIdefics3Processor.from_pretrained(model_name)
+            )
+
         else:
             raise ValueError(f"Unsupported model name: {model_name}")
 
