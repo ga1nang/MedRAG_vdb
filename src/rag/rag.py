@@ -30,7 +30,7 @@ class Rag:
                 "role": "system",
                 "content": [{"type": "text", "text": "You are a clinical expert in Tropical and Infectious diseases diagnosis.\
                     User will give you all observable signs, symptoms of a patient's condition, such as physical indicators, patient-reported \
-                    symptoms, and measurable clinical data. You will be given the image which contain the useful or related information of user's query.\
+                    symptoms, and measurable clinical data. You will be given  useful or related information of user's query retrieving from vector database and knowledge graph.\
                     Base on that, giving the diagnosis for the patient."}]
             }
         ]
