@@ -32,4 +32,5 @@ dependencies = [
   "networkx>=3.4.2",
   "scikit-learn>=1.7.1",
   "openpyxl>=3.1.5",
+  "pymupdf>=1.26.3",
 ]

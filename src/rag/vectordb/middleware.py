@@ -5,7 +5,7 @@ Glue code that ties together:
 - KGManager -> retrieve relevant information from Knowledge Graph
 - QdrantManager -> stores & searches vectors
 """
-
+import fitz
 from pathlib import Path
 from typing import List, Any
 
@@ -22,7 +22,7 @@ cfg = load_config()
 class Middleware:
     """Main entry-point for index() and search() used by the app"""
     
-    def __init__(self, kg_path: str, model_name: str, quantized: bool, create_collection: bool = True, enable_rag: bool = False):
+    def __init__(self, kg_path: str, model_name: str, quantized: bool, create_collection: bool = True, enable_rag: bool = False, quantize_llm: bool = False, quantization_type_llm: str = "4bit"):
         # Init manager
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
@@ -41,7 +41,10 @@ class Middleware:
         )
         # Initilize LLM backbone
         if enable_rag:
-            self.rag = Rag()
+            if quantize_llm:
+                self.rag = Rag(quantize=quantize_llm, quantization_type=quantization_type_llm)
+            else:
+                self.rag = Rag(quantize=quantize_llm)
         
     def index(
         self,
@@ -89,7 +92,7 @@ class Middleware:
         # Retrieve from vector database
         results_vectordb = self._search_vectordb(query=query, top_k=top_k)
         # Retrieve from knowledge graph
-        results_kg = self._search_knowledge_graph(query=query, top_k=3)
+        results_kg = self._search_knowledge_graph(query=query, top_k=1)
 
         return results_vectordb, results_kg
     
@@ -136,6 +139,25 @@ class Middleware:
         print("--------------------------------------------------------------------------------")
         return results
     
-    def get_answer_from_medgemma(self, query: str, images_path: List[str], kg_info: str) -> str:
-        query = f"{query}.\n These images are relevant document retreived from vector database. And these are relevant information retrieved from knowledge graph: {kg_info}"
+    def get_answer_from_medgemma(self, query: str, images_path: List[str], retrieved_docs: List[str], kg_info: str) -> str:
+        relevant_docs = "# Retrieved Clinical cases from vector database\n"
+        for i, doc in enumerate(retrieved_docs):
+            relevant_docs = relevant_docs + f"Case {i+1}:\n"
+            relevant_docs = relevant_docs + self._extract_text_from_pdf(doc)
+
+        query = f"{query}.\n These are relevant document retreived from vector database.\n{relevant_docs}.\nAnd these are relevant information retrieved from knowledge graph: {kg_info}"
         return self.rag.get_answer_from_medgemma(query, images_path)
+    
+    def _extract_text_from_pdf(self, pdf_path):
+        # Open the PDF
+        doc = fitz.open(pdf_path)
+        all_text = ""
+
+        # Loop through each page and extract text
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)         
+            text = page.get_text("text")           
+            all_text += f"\n--- Page {page_num + 1} ---\n{text}"
+
+        doc.close()
+        return all_text

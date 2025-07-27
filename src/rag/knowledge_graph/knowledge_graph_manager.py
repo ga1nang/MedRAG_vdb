@@ -229,10 +229,10 @@ class KGManager:
 
         # ② Get top‑N KG symptom nodes
         top_5_history_nodes = self.find_top_n_similar_symptoms(
-            disease_histories, self.symptom_nodes, self.symptom_embeddings, top_n_symptoms
+            disease_histories, self.symptom_nodes, self.symptom_embeddings, 5
         )
         top_5_symptom_nodes = self.find_top_n_similar_symptoms(
-            disease_symptoms,  self.symptom_nodes, self.symptom_embeddings, top_n_symptoms
+            disease_symptoms,  self.symptom_nodes, self.symptom_embeddings, 5
         )
 
         # Map back to original terms for interpretability
