@@ -9,8 +9,7 @@ src/rag/__pycache__
 src/rag/vectordb/__pycache__
 src/medrag_colpali.egg-info
 src/rag/embedders/__pycache__
-notebooks/small_test.ipynb
 notebooks/retreival_system.ipynb
 config/rag_config.yaml
 src/rag/knowledge_graph/__pycache__
-notebooks/evaluation.ipynb
+notebooks/evaluation_bleu_rouge.ipynb
