@@ -36,4 +36,5 @@ dependencies = [
   "google-genai>=1.27.0",
   "evaluate>=0.4.5",
   "rouge-score>=0.1.2",
+  "streamlit>=1.47.1",
 ]
