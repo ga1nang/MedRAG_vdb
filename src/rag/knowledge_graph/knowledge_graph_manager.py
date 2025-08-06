@@ -205,7 +205,7 @@ class KGManager:
             print("No additional information found.")
             return None
 
-        final_info = ', '.join(additional_info)
+        final_info = '\n'.join(additional_info)
         print("Additional Info:", final_info)
         return final_info
 
