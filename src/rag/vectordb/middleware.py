@@ -92,7 +92,7 @@ class Middleware:
         # Retrieve from vector database
         results_vectordb = self._search_vectordb(query=query, top_k=top_k)
         # Retrieve from knowledge graph
-        results_kg = self._search_knowledge_graph(query=query, top_k=1)
+        results_kg, _, _ = self._search_knowledge_graph(query=query, top_k=1)
 
         return results_vectordb, results_kg
     
@@ -137,7 +137,7 @@ class Middleware:
         )
         print(f"Relevant information from Knowledge Graph: \n{results}")
         print("--------------------------------------------------------------------------------")
-        return results
+        return results, histories, symptoms
     
     def get_answer_from_medgemma(self, query: str, images_path: List[str], retrieved_docs: List[str], kg_info: str) -> str:
         relevant_docs = "# Retrieved Clinical cases from vector database\n"
