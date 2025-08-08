@@ -110,7 +110,7 @@ class Middleware:
 
         query_vec = self.colpali_manager.process_text(query)[0]
         result = self.db.search(query_vec, top_k)
-        print(f"Relevant document from vector database: {result}")
+        # print(f"Relevant document from vector database: {result}")
         print("--------------------------------------------------------------------------------")
         return result
     
@@ -135,7 +135,7 @@ class Middleware:
             top_n_categries=top_k,
             top_n_symptoms=top_k,
         )
-        print(f"Relevant information from Knowledge Graph: \n{results}")
+        # print(f"Relevant information from Knowledge Graph: \n{results}")
         print("--------------------------------------------------------------------------------")
         return results, histories, symptoms
     
