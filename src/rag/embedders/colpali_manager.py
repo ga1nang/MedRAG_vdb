@@ -2,6 +2,7 @@ import torch
 import os
 import spaces
 
+from functools import lru_cache
 from colpali_engine.models import ColPali, ColQwen2, ColQwen2Processor, ColIdefics3, ColIdefics3Processor
 from colpali_engine.models.paligemma.colpali.processing_colpali import ColPaliProcessor
 from colpali_engine.utils.torch_utils import ListDataset, get_torch_device
@@ -14,73 +15,80 @@ from src.rag.config import load_config
 
 cfg = load_config()
 
+@lru_cache(maxsize=1)
+def load_colpali(quantized: bool, device: str = "cuda", model_name: str = "vidore/colpali-v1.3"):
+    # Setup optional quantization
+    bnb_cfg = None
+    model = None
+    processor = None
+    if quantized:
+        bnb_cfg = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+        )
+
+    # Load ColPali
+    if model_name == "vidore/colpali-v1.3":
+        model = ColPali.from_pretrained(
+            model_name,
+            torch_dtype=None if quantized else torch.bfloat16,
+            device_map=device,
+            quantization_config=bnb_cfg,
+        ).eval()
+        processor = cast(
+            ColPaliProcessor,
+            ColPaliProcessor.from_pretrained(model_name)
+        )
+
+    # Load ColQwen2
+    elif model_name == "vidore/colqwen2-v1.0":
+        model = ColQwen2.from_pretrained(
+            model_name,
+            torch_dtype=None if quantized else torch.bfloat16,
+            device_map=device,
+            quantization_config=bnb_cfg,
+        ).eval()
+        processor = cast(
+            ColQwen2Processor,
+            ColQwen2Processor.from_pretrained(model_name)
+        )
+
+    # Load ColSmol (Idefics3)
+    elif model_name == "vidore/colSmol-500M":
+        model = ColIdefics3.from_pretrained(
+            model_name,
+            torch_dtype=None if quantized else torch.bfloat16,
+            device_map=device,
+            quantization_config=bnb_cfg,
+        ).eval()
+        processor = cast(
+            ColIdefics3Processor,
+            ColIdefics3Processor.from_pretrained(model_name)
+        )
+
+    elif model_name == "vidore/colSmol-256M":
+        model = ColIdefics3.from_pretrained(
+            model_name,
+            torch_dtype=None if quantized else torch.bfloat16,
+            device_map=device,
+            quantization_config=bnb_cfg,
+        ).eval()
+        processor = cast(
+            ColIdefics3Processor,
+            ColIdefics3Processor.from_pretrained(model_name)
+        )
+    else:
+        raise ValueError(f"Unsupported model name: {model_name}")
+    
+    return model, processor
+
 class ColPaliManager:
     def __init__(self, quantized: bool, device: str = "cuda", model_name: str = "vidore/colpali-v1.3"):
         self.device = get_torch_device(device)
 
-        # Setup optional quantization
-        bnb_cfg = None
-        if quantized:
-            bnb_cfg = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4",
-            )
-
-        # Load ColPali
-        if model_name == "vidore/colpali-v1.3":
-            self.model = ColPali.from_pretrained(
-                model_name,
-                torch_dtype=None if quantized else torch.bfloat16,
-                device_map=device,
-                quantization_config=bnb_cfg,
-            ).eval()
-            self.processor = cast(
-                ColPaliProcessor,
-                ColPaliProcessor.from_pretrained(model_name)
-            )
-
-        # Load ColQwen2
-        elif model_name == "vidore/colqwen2-v1.0":
-            self.model = ColQwen2.from_pretrained(
-                model_name,
-                torch_dtype=None if quantized else torch.bfloat16,
-                device_map=device,
-                quantization_config=bnb_cfg,
-            ).eval()
-            self.processor = cast(
-                ColQwen2Processor,
-                ColQwen2Processor.from_pretrained(model_name)
-            )
-
-        # Load ColSmol (Idefics3)
-        elif model_name == "vidore/colSmol-500M":
-            self.model = ColIdefics3.from_pretrained(
-                model_name,
-                torch_dtype=None if quantized else torch.bfloat16,
-                device_map=device,
-                quantization_config=bnb_cfg,
-            ).eval()
-            self.processor = cast(
-                ColIdefics3Processor,
-                ColIdefics3Processor.from_pretrained(model_name)
-            )
-
-        elif model_name == "vidore/colSmol-256M":
-            self.model = ColIdefics3.from_pretrained(
-                model_name,
-                torch_dtype=None if quantized else torch.bfloat16,
-                device_map=device,
-                quantization_config=bnb_cfg,
-            ).eval()
-            self.processor = cast(
-                ColIdefics3Processor,
-                ColIdefics3Processor.from_pretrained(model_name)
-            )
-
-        else:
-            raise ValueError(f"Unsupported model name: {model_name}")
+        self.model, self.processor = load_colpali(quantized=quantized, device=self.device, model_name= model_name)
 
     @spaces.GPU
     def get_images(self, paths: List[str]) -> List[Image.Image]:
