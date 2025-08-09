@@ -1,13 +1,18 @@
 import torch
 import os
 import numpy as np
+
+from functools import lru_cache
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
 
+@lru_cache(maxsize=1)
+def load_medbert(model_name: str):
+    return AutoTokenizer.from_pretrained(model_name), AutoModel.from_pretrained(model_name)
+
 class BERTManger:
     def __init__(self, model_name="microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+        self.tokenizer, self.model = load_medbert(model_name=model_name)
 
     def meanpooling(self, output, mask):
         embeddings = output[0] # First element of model_output contains all token embeddings
