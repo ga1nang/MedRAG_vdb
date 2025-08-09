@@ -1,7 +1,7 @@
 # Embedding settings
 embedding_model: "vidore/colpali-v1.3"
 device: "cuda"
-vit_batch_size: 50
+vit_batch_size: 1
 
 # Vector DB settings
 vector_db:

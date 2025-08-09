@@ -13,3 +13,4 @@ notebooks/retreival_system.ipynb
 config/rag_config.yaml
 src/rag/knowledge_graph/__pycache__
 notebooks/evaluation_bleu_rouge.ipynb
+notebooks/preprocess_clinical_cases.ipynb
