@@ -7,6 +7,7 @@ import re
 import json
 import warnings
 
+from functools import lru_cache
 from typing import List, Dict, Optional
 from src.rag.utils.utils import encode_image
 from transformers import pipeline
@@ -16,6 +17,22 @@ load_dotenv()
 hf_token = os.getenv("HF_TOKEN")
 os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
 
+@lru_cache(maxsize=1)   
+def load_medgemma(quantize: bool, quantization_type: str):
+    kwargs = {
+        "task": "image-text-to-text",
+        "model": "google/medgemma-4b-it",
+        "token": hf_token,
+        "device_map": "auto",
+        "torch_dtype": torch.bfloat16,
+    }
+    if quantize:
+        if quantization_type == "4bit":
+            kwargs["load_in_4bit"] = True
+        elif quantization_type == "8bit":
+            kwargs["load_in_8bit"] = True
+    return pipeline(**kwargs)   
+
 class Rag:
     def __init__(self, quantize: bool = False, quantization_type: str = "4bit"):
         """
@@ -23,33 +40,8 @@ class Rag:
             quantize (bool): Whether to enable quantization.
             quantization_type (str): "4bit" or "8bit".
         """
-        pipeline_kwargs = {
-            "task": "image-text-to-text",
-            "model": "google/medgemma-4b-it",
-            "token": hf_token,
-            "device_map": "auto"
-        }
-
-        if quantize:
-            # Use bitsandbytes quantization
-            if quantization_type == "4bit":
-                pipeline_kwargs.update({
-                    "torch_dtype": torch.bfloat16,  # computation dtype
-                    "load_in_4bit": True
-                })
-            elif quantization_type == "8bit":
-                pipeline_kwargs.update({
-                    "torch_dtype": torch.bfloat16,
-                    "load_in_8bit": True
-                })
-        else:
-            # No quantization (full precision)
-            pipeline_kwargs.update({
-                "torch_dtype": torch.bfloat16
-            })
-
         # Build the pipeline with selected options
-        self.pipe = pipeline(**pipeline_kwargs)
+        self.pipe = load_medgemma(quantize=quantize, quantization_type=quantization_type)
 
         self.message = [
             {
@@ -119,7 +111,7 @@ class Rag:
         del outputs
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-        
+
         # ---------- 3. parse and normalise ---------- #
         # Use the new, dedicated parser for the scratchpad format
         result = self._parse_final_json_from_scratchpad(raw_output)
