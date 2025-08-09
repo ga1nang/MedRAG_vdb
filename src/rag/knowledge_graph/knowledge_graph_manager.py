@@ -206,7 +206,7 @@ class KGManager:
             return None
 
         final_info = '\n'.join(additional_info)
-        print("Additional Info:", final_info)
+        # print("Additional Info:", final_info)
         return final_info
 
     def main_get_category_and_level3(
