@@ -139,25 +139,41 @@ class Middleware:
         print("--------------------------------------------------------------------------------")
         return results, histories, symptoms
     
-    def get_answer_from_medgemma(self, query: str, images_path: List[str], retrieved_docs: List[str], kg_info: str) -> str:
-        relevant_docs = "# Retrieved Clinical cases from vector database\n"
-        for i, doc in enumerate(retrieved_docs):
-            relevant_docs = relevant_docs + f"Case {i+1}:\n"
-            relevant_docs = relevant_docs + self._extract_text_from_pdf(doc)
+    def get_answer_from_medgemma(
+        self,
+        query: str,
+        images_path: List[str],
+        retrieved_docs: List[str],
+        kg_info: str
+    ) -> str:
+        # Limit number of retrieved docs
+        relevant_docs = ["# Retrieved Clinical Cases from Vector Database"]
+        for i, doc in enumerate(retrieved_docs[:3]):  # max 3 docs
+            snippet = self._extract_text_from_pdf(doc, max_pages=2, max_chars=3000)
+            relevant_docs.append(f"Case {i+1}:\n{snippet}")
 
-        query = f"{query}.\n These are relevant document retreived from vector database.\n{relevant_docs}.\nAnd these are relevant information retrieved from knowledge graph: {kg_info}"
-        return self.rag.get_answer_from_medgemma(query, images_path)
-    
-    def _extract_text_from_pdf(self, pdf_path):
-        # Open the PDF
+        docs_block = "\n".join(relevant_docs)
+        kg_block = self._truncate_text(kg_info, max_chars=2000)
+
+        fused_query = (
+            f"{query}.\nThese are relevant documents retrieved from the vector database:\n"
+            f"{docs_block}\n\n"
+            f"And these are relevant information retrieved from the knowledge graph:\n"
+            f"{kg_block}"
+        )
+        return self.rag.get_answer_from_medgemma(fused_query, images_path)
+
+    def _extract_text_from_pdf(self, pdf_path, max_pages: int = 2, max_chars: int = 3000) -> str:
+        """Extracts limited text from the first few pages of a PDF."""
+        import fitz
         doc = fitz.open(pdf_path)
         all_text = ""
-
-        # Loop through each page and extract text
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)         
-            text = page.get_text("text")           
+        for page_num in range(min(len(doc), max_pages)):
+            text = doc[page_num].get_text("text").strip()
             all_text += f"\n--- Page {page_num + 1} ---\n{text}"
-
         doc.close()
-        return all_text
+        return self._truncate_text(all_text, max_chars)
+
+    def _truncate_text(self, txt: str, max_chars: int) -> str:
+        """Truncates text to a safe length for prompt."""
+        return txt if len(txt) <= max_chars else txt[:max_chars] + "\n...[truncated]..."
