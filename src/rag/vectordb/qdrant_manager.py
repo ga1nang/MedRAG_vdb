@@ -108,9 +108,9 @@ class QdrantManager:
         )
         return [
             {
-                "filepath": result.payload["filepath"],
+                # "filepath": result.payload["filepath"],
                 "original_file": result.payload["original_file"],
-                "score": result.score,
+                # "score": result.score,
             }
             for result in results
         ]
