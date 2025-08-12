@@ -73,8 +73,10 @@ class Rag:
         outputs = self.pipe(
             text=messages,
             images=images,
-            max_new_tokens=1024,          # keep it reasonable
-            return_full_text=False
+            max_new_tokens=1024,
+            return_full_text=False,
+            do_sample=False,   # temperature is ignored
+            num_beams=1,       # ensure pure greedy
         )
         result = outputs[0]["generated_text"]
         # Free VRAM
@@ -88,7 +90,7 @@ class Rag:
         self,
         query: str,
         images_path: Optional[List[str]] = None,
-        max_new_tokens: int = 256,
+        max_new_tokens: int = 512,
     ) -> Dict[str, List[str]]:
         """
         Extracts 'history' and 'symptoms' using the reliable scratchpad method.
@@ -103,10 +105,12 @@ class Rag:
             text=messages,
             images=images,
             max_new_tokens=max_new_tokens,
-            return_full_text=False
+            return_full_text=False,
+            do_sample=False,   # temperature is ignored
+            num_beams=1,       # ensure pure greedy
         )
         raw_output = outputs[0]["generated_text"]
-        
+        # print(f"Raw output: \n{raw_output}")
         # Free VRAM
         del outputs
         torch.cuda.empty_cache()
@@ -247,9 +251,10 @@ class Rag:
 
     
     def _parse_json(self, payload: str) -> Dict[str, List[str]]:
-            # strip code‑block fencing if the model wrapped output in ```json
-            cleaned = re.sub(r"^```(?:json)?|```$", "", payload.strip(), flags=re.I | re.S)
-            return json.loads(cleaned)
+        cleaned = re.sub(r"```(?:json)?", "", payload, flags=re.I)
+        cleaned = cleaned.replace("```", "").strip()
+        return json.loads(cleaned)
+
 
     def _normalise(self, seq: List[str]) -> List[str]:
         """
@@ -270,23 +275,43 @@ class Rag:
     
     def _parse_final_json_from_scratchpad(self, payload: str) -> Dict[str, List[str]]:
         """
-        Extracts the JSON content from within the <final_json> block.
-        This is the dedicated parser for the scratchpad prompt format.
+        Extract JSON from:
+        1) <final_json>...</final_json>
+        2) ```json ... ```
+        3) first {...} object found anywhere
         """
-        # Use regex to find content inside <final_json>...</final_json>
-        match = re.search(r"<final_json>\s*(.*?)\s*</final_json>", payload, re.DOTALL)
-        
-        if not match:
-            warnings.warn("Could not find <final_json> block in model output.")
-            # Return the default empty structure if the block is missing
-            return {"history": [], "symptoms": []}
-            
-        json_str = match.group(1).strip()
-        
-        # Now, parse the extracted JSON string
-        try:
-            # Use your existing _parse_json to handle potential markdown ```
-            return self._parse_json(json_str)
-        except json.JSONDecodeError:
-            warnings.warn(f"Failed to decode JSON from the extracted block: {json_str}")
-            return {"history": [], "symptoms": []}
+        # 1) Strict <final_json> block
+        m = re.search(r"<final_json>\s*(.*?)\s*</final_json>", payload, re.DOTALL | re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            try:
+                return self._parse_json(candidate)  # already strips ```...``` if present
+            except json.JSONDecodeError:
+                warnings.warn("Failed to decode JSON inside <final_json> block.")
+
+        # 2) Fenced code block: ```json { ... } ```
+        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", payload, re.DOTALL | re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                warnings.warn("Failed to decode JSON inside fenced code block.")
+
+        # 3) First JSON object anywhere
+        m = re.search(r"\{[\s\S]*?\}", payload)
+        if m:
+            candidate = m.group(0).strip()
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                # lenient cleanup: single→double quotes, remove trailing commas
+                cleaned = re.sub(r"'", '"', candidate)
+                cleaned = re.sub(r",\s*([}\]])", r"\1", cleaned)
+                try:
+                    return json.loads(cleaned)
+                except Exception:
+                    warnings.warn("Failed to decode loose JSON candidate.")
+
+        warnings.warn("No JSON found in model output.")
+        return {"history": [], "symptoms": []}
