@@ -242,7 +242,7 @@ class KGManager:
         top_idxs = sims.argsort()[::-1]
         chosen, seen = [], set()
         for idx in top_idxs:
-            if sims[idx] > 0.5 and symptom_nodes[idx] not in seen:
+            if sims[idx] > 0.4 and symptom_nodes[idx] not in seen:
                 chosen.append(symptom_nodes[idx])
                 seen.add(symptom_nodes[idx])
                 if len(chosen) == n:
