@@ -33,9 +33,7 @@ class KGManager:
         # Predefined categories (could also be loaded from a config file)
         self.categories = [
             "cardiovascular_system", "respiratory_system", "gastrointestinal_system",
-            "neurological_and_muscular_system", "infectious_diseases",
-            "autoimmune_and_immunological_diseases", "hematological_disorders",
-            "trauma_and_injury_related_conditions", "psychiatric_and_stress_related_disorders"
+            "neurological_and_muscular_system", "infectious_diseases"
         ]
 
         # Predefined the diseases im each categories
@@ -84,43 +82,25 @@ class KGManager:
     def _load_level_3_to_level_2(self):
         return {
             # Cardiovascular System
-            "atrial_fibrillation": "cardiovascular_system",
             "myocarditis": "cardiovascular_system",
             "pericarditis": "cardiovascular_system",
-            "psvt": "cardiovascular_system",
-            "possible_nstemi_stemi": "cardiovascular_system",
-            "stable_angina": "cardiovascular_system",
-            "unstable_angina": "cardiovascular_system",
-            "pulmonary_embolism": "cardiovascular_system",
             # Respiratory System
             "acute_copd_exacerbation_infection": "respiratory_system",
             "bronchiectasis": "respiratory_system",
             "bronchiolitis": "respiratory_system",
             "bronchitis": "respiratory_system",
             "bronchospasm_acute_asthma_exacerbation": "respiratory_system",
-            "pulmonary_embolism": "respiratory_system",
-            "pulmonary_neoplasm": "respiratory_system",
-            "spontaneous_pneumothorax": "respiratory_system",
             "urti": "respiratory_system",
             "viral_pharyngitis": "respiratory_system",
             "whooping_cough": "respiratory_system",
             "acute_laryngitis": "respiratory_system",
-            "acute_pulmonary_edema": "respiratory_system",
             "croup": "respiratory_system",
-            "larygospasm": "respiratory_system",
             "epiglottitis": "respiratory_system",
             "pneumonia": "respiratory_system",
             # Gastrointestinal System
-            "gerd": "gastrointestinal_system",
-            "boerhaave_syndrome": "gastrointestinal_system",
-            "pancreatic_neoplasm": "gastrointestinal_system",
             "scombroid_food_poisoning": "gastrointestinal_system",
-            "inguinal_hernia": "gastrointestinal_system",
             # Neurological and Muscular System
-            "myasthenia_gravis": "neurological_and_muscular_system",
             "guillain_barre_syndrome": "neurological_and_muscular_system",
-            "cluster_headache": "neurological_and_muscular_system",
-            "acute_dystonic_reactions": "neurological_and_muscular_system",
             # Infectious Diseases
             "tuberculosis": "infectious_diseases",
             "hiv_initial_infection": "infectious_diseases",
@@ -132,19 +112,6 @@ class KGManager:
             "allergic_sinusitis": "infectious_diseases",
             "chronic_rhinosinusitis": "infectious_diseases",
             "pneumonia": "infectious_diseases",
-            # Autoimmune and Immunological Diseases
-            "sle": "autoimmune_and_immunological_diseases",
-            "sarcoidosis": "autoimmune_and_immunological_diseases",
-            "anaphylaxis": "autoimmune_and_immunological_diseases",
-            "allergic_sinusitis": "autoimmune_and_immunological_diseases",
-            # Hematological Disorders
-            "hematological_disorders": "hematological_disorders",
-            # Trauma and Injury Related Conditions
-            "spontaneous_rib_fracture": "trauma_and_injury_related_conditions",
-            "spontaneous_pneumothorax": "trauma_and_injury_related_conditions",
-            "inguinal_hernia": "trauma_and_injury_related_conditions",
-            # Psychiatric and Stress Related Disorders
-            "panic_attack": "psychiatric_and_stress_related_disorders",
         }
 
     
