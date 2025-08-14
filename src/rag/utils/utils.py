@@ -20,7 +20,20 @@ def preprocess_text(text):
     tokens = word_tokenize(text)
     return ' '.join(tokens)
 
-def extract_text_from_pdf(self, pdf_path, max_pages: int = 3, max_chars: int = 3000) -> str:
+def preprocess_text_rerank(text):
+    """Clean and normalize text: remove parentheses, punctuation, lowercase, tokenize, remove newlines."""
+    if pd.isna(text):
+        return ''
+    text = re.sub(r'\(.*?\)', '', text).strip()
+    text = text.replace('_', ' ')
+    text = text.replace('\n', ' ')  # remove newlines
+    text = text.lower()
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    tokens = word_tokenize(text)
+    return ' '.join(tokens)
+
+
+def extract_text_from_pdf(pdf_path, max_pages: int = 3, max_chars: int = 3000) -> str:
     """Extracts limited text from the first few pages of a PDF."""
     import fitz
     doc = fitz.open(pdf_path)
@@ -31,6 +44,6 @@ def extract_text_from_pdf(self, pdf_path, max_pages: int = 3, max_chars: int = 3
     doc.close()
     return truncate_text(all_text, max_chars)
 
-def truncate_text(self, txt: str, max_chars: int) -> str:
+def truncate_text(txt: str, max_chars: int) -> str:
     """Truncates text to a safe length for prompt."""
     return txt if len(txt) <= max_chars else txt[:max_chars] + "\n...[truncated]..."
