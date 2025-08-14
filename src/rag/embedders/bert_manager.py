@@ -6,13 +6,24 @@ from functools import lru_cache
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
 
+# --- CPU threading knobs ---
+os.environ.setdefault("OMP_NUM_THREADS", "20")
+os.environ.setdefault("MKL_NUM_THREADS", "20")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+torch.set_num_threads(int(os.environ["OMP_NUM_THREADS"]))
+
 @lru_cache(maxsize=1)
 def load_medbert(model_name: str):
-    return AutoTokenizer.from_pretrained(model_name), AutoModel.from_pretrained(model_name)
+    tok = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name)
+    model.eval() 
+    return tok, model
 
 class BERTManger:
     def __init__(self, model_name="microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"):
         self.tokenizer, self.model = load_medbert(model_name=model_name)
+        self.device = torch.device("cpu")
+        self.model.to(self.device)
 
     def meanpooling(self, output, mask):
         embeddings = output[0] # First element of model_output contains all token embeddings
