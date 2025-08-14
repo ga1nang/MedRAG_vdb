@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Any
 
 from src.rag.utils.pdf_manager import PdfManager
+from src.rag.utils.utils import extract_text_from_pdf, truncate_text
 from src.rag.embedders.colpali_manager import ColPaliManager
 from src.rag.knowledge_graph.knowledge_graph_manager import KGManager
 from src.rag.vectordb.qdrant_manager import QdrantManager
@@ -149,11 +150,11 @@ class Middleware:
         # Limit number of retrieved docs
         relevant_docs = ["# Retrieved Clinical Cases from Vector Database"]
         for i, doc in enumerate(retrieved_docs[:3]):  # max 3 docs
-            snippet = self._extract_text_from_pdf(doc, max_pages=2, max_chars=3000)
+            snippet = extract_text_from_pdf(doc, max_pages=3, max_chars=3000)
             relevant_docs.append(f"Case {i+1}:\n{snippet}")
 
         docs_block = "\n".join(relevant_docs)
-        kg_block = self._truncate_text(kg_info, max_chars=2000)
+        kg_block = truncate_text(kg_info, max_chars=2000)
 
         fused_query = (
             f"{query}.\nThese are relevant documents retrieved from the vector database:\n"
@@ -162,18 +163,3 @@ class Middleware:
             f"{kg_block}"
         )
         return self.rag.get_answer_from_medgemma(fused_query, images_path)
-
-    def _extract_text_from_pdf(self, pdf_path, max_pages: int = 2, max_chars: int = 3000) -> str:
-        """Extracts limited text from the first few pages of a PDF."""
-        import fitz
-        doc = fitz.open(pdf_path)
-        all_text = ""
-        for page_num in range(min(len(doc), max_pages)):
-            text = doc[page_num].get_text("text").strip()
-            all_text += f"\n--- Page {page_num + 1} ---\n{text}"
-        doc.close()
-        return self._truncate_text(all_text, max_chars)
-
-    def _truncate_text(self, txt: str, max_chars: int) -> str:
-        """Truncates text to a safe length for prompt."""
-        return txt if len(txt) <= max_chars else txt[:max_chars] + "\n...[truncated]..."

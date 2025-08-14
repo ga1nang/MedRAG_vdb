@@ -19,3 +19,18 @@ def preprocess_text(text):
     text = text.translate(str.maketrans('', '', string.punctuation))
     tokens = word_tokenize(text)
     return ' '.join(tokens)
+
+def extract_text_from_pdf(self, pdf_path, max_pages: int = 3, max_chars: int = 3000) -> str:
+    """Extracts limited text from the first few pages of a PDF."""
+    import fitz
+    doc = fitz.open(pdf_path)
+    all_text = ""
+    for page_num in range(min(len(doc), max_pages)):
+        text = doc[page_num].get_text("text").strip()
+        all_text += f"\n--- Page {page_num + 1} ---\n{text}"
+    doc.close()
+    return truncate_text(all_text, max_chars)
+
+def truncate_text(self, txt: str, max_chars: int) -> str:
+    """Truncates text to a safe length for prompt."""
+    return txt if len(txt) <= max_chars else txt[:max_chars] + "\n...[truncated]..."
