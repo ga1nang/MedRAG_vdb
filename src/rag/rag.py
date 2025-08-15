@@ -50,7 +50,7 @@ class Rag:
             }
         ]
 
-    def _load_system_prompt() -> str:
+    def _load_system_prompt(self) -> str:
         return """
             You are a clinician specialized in Tropical & Infectious Diseases.
             You will receive a patient summary, optional images, and context (retrieved docs + knowledge-graph facts).
