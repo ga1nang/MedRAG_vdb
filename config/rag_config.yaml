@@ -13,7 +13,7 @@ vector_db:
   url: "http://localhost:6333"
 
 # Retrieval
-retrieval_top_k: 5
+retrieval_top_k: 20
 
 # LLM
 llm:

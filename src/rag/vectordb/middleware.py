@@ -12,6 +12,7 @@ from typing import List, Any
 from src.rag.utils.pdf_manager import PdfManager
 from src.rag.utils.utils import extract_text_from_pdf, truncate_text
 from src.rag.embedders.colpali_manager import ColPaliManager
+from src.rag.re_ranker.re_ranker_manager import ReRankerManager
 from src.rag.knowledge_graph.knowledge_graph_manager import KGManager
 from src.rag.vectordb.qdrant_manager import QdrantManager
 from src.rag.rag import Rag
@@ -28,6 +29,7 @@ class Middleware:
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
         self.colpali_manager = ColPaliManager(model_name=model_name, quantized=quantized)
+        self.re_ranker_manager = ReRankerManager()
         self.kg_manager = KGManager(kg_path, 'data/processed')
         
         # Create Qdrant fodler
@@ -110,8 +112,10 @@ class Middleware:
         print(f"Searching in vector database")
 
         query_vec = self.colpali_manager.process_text(query)[0]
+        print(top_k)
         result = self.db.search(query_vec, top_k)
-        # print(f"Relevant document from vector database: {result}")
+        print(f"Relevant document from vector database: {len(result)} files\n{result}")
+        result = self.re_ranker_manager.re_rank(query=query, vectordb_docs=result)
         print("--------------------------------------------------------------------------------")
         return result
     
@@ -149,8 +153,8 @@ class Middleware:
     ) -> str:
         # Limit number of retrieved docs
         relevant_docs = ["# Retrieved Clinical Cases from Vector Database"]
-        for i, doc in enumerate(retrieved_docs[:3]):  # max 3 docs
-            snippet = extract_text_from_pdf(doc, max_pages=3, max_chars=3000)
+        for i, doc in enumerate(retrieved_docs):  # max 3 docs
+            snippet = extract_text_from_pdf(doc, max_pages=4, max_chars=8000)
             relevant_docs.append(f"Case {i+1}:\n{snippet}")
 
         docs_block = "\n".join(relevant_docs)
