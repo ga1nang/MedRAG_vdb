@@ -152,9 +152,9 @@ class Middleware:
         kg_info: str
     ) -> str:
         # Limit number of retrieved docs
-        relevant_docs = ["# Retrieved Clinical Cases from Vector Database"]
+        relevant_docs = []
         for i, doc in enumerate(retrieved_docs):  # max 3 docs
-            snippet = extract_text_from_pdf(doc, max_pages=4, max_chars=8000)
+            snippet = extract_text_from_pdf(doc, max_pages=8, max_chars=8000)
             relevant_docs.append(f"Case {i+1}:\n{snippet}")
 
         docs_block = "\n".join(relevant_docs)
@@ -163,13 +163,13 @@ class Middleware:
             "You are a professional clinician specializing in tropical and infectious disease diagnosis.\n"
             "Please evaluate the patient case and reason through four stages (Information Gathering, Hypothesis Generation, "
             "Hypothesis Testing, Reflection & Final Diagnosis). Be concise and grounded.\n\n"
-            "PATIENT_CASE\n"
+            "# PATIENT_CASE\n"
             f"{query}\n\n"
-            "CONTEXT — RETRIEVED_DOCS\n"
+            "# CONTEXT — RETRIEVED_DOCS\n"
             f"{docs_block}\n\n"
-            "CONTEXT — KNOWLEDGE_GRAPH\n"
+            "# CONTEXT — KNOWLEDGE_GRAPH\n"
             f"{kg_info}\n\n"
-            "Please ground your reasoning in the CONTEXT sections when possible and include inline [CIT: ...] tags.\n"
+            "Please ground your reasoning in the CONTEXT sections when possible.\n"
             "Let’s think step by step."
         )
         return self.rag.get_answer_from_medgemma(fused_query, images_path)
