@@ -158,12 +158,18 @@ class Middleware:
             relevant_docs.append(f"Case {i+1}:\n{snippet}")
 
         docs_block = "\n".join(relevant_docs)
-        kg_block = truncate_text(kg_info, max_chars=2000)
 
         fused_query = (
-            f"{query}.\nThese are relevant documents retrieved from the vector database:\n"
+            "You are a professional clinician specializing in tropical and infectious disease diagnosis.\n"
+            "Please evaluate the patient case and reason through four stages (Information Gathering, Hypothesis Generation, "
+            "Hypothesis Testing, Reflection & Final Diagnosis). Be concise and grounded.\n\n"
+            "PATIENT_CASE\n"
+            f"{query}\n\n"
+            "CONTEXT — RETRIEVED_DOCS\n"
             f"{docs_block}\n\n"
-            f"And these are relevant information retrieved from the knowledge graph:\n"
-            f"{kg_block}"
+            "CONTEXT — KNOWLEDGE_GRAPH\n"
+            f"{kg_info}\n\n"
+            "Please ground your reasoning in the CONTEXT sections when possible and include inline [CIT: ...] tags.\n"
+            "Let’s think step by step."
         )
         return self.rag.get_answer_from_medgemma(fused_query, images_path)

@@ -46,12 +46,30 @@ class Rag:
         self.message = [
             {
                 "role": "system",
-                "content": [{"type": "text", "text": "You are a clinical expert in Tropical and Infectious diseases diagnosis.\
-                    User will give you all observable signs, symptoms of a patient's condition, such as physical indicators, patient-reported \
-                    symptoms, and measurable clinical data. You will be given  useful or related information of user's query retrieving from vector database and knowledge graph.\
-                    Base on that, giving the diagnosis for the patient."}]
+                "content": [{"type": "text", "text": self._load_system_prompt()}]
             }
         ]
+
+    def _load_system_prompt() -> str:
+        return """
+            You are a clinician specialized in Tropical & Infectious Diseases.
+            You will receive a patient summary, optional images, and context (retrieved docs + knowledge-graph facts).
+
+            YOUR ONLY JOB: pick the single most likely working diagnosis.
+
+            OUTPUT RULES — FOLLOW EXACTLY
+            • Return EXACTLY TWO LINES and NOTHING ELSE (no prose, no bullets, no JSON, no citations).
+            • Line 1 starts with: WORKING_DIAGNOSIS:
+            • Line 2 starts with: DISEASE_NAME:
+            • Keep the text after each label short (≤12 words).
+            • If evidence is weak, still choose the top single candidate; if impossible, write “Unknown”.
+
+            FORMAT
+            WORKING_DIAGNOSIS: <concise working diagnosis, include severity/stage if clear>
+            DISEASE_NAME: <canonical disease name only>
+
+            Do not add any other text or punctuation beyond the two lines above.
+        """
     
     def get_answer_from_medgemma(self, query: str, images_path: List[str]) -> str:
         # Load images
