@@ -228,6 +228,14 @@
 
 
 import os
+# Hugging Face caches (put *all* caches/temp on your big drive if needed)
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # adjust if multi-GPU
+os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+os.environ["HF_HUB_TEMP_DIR"] = "/media/pc1/Ubuntu/tmp"
+os.environ.setdefault("TRANSFORMERS_CACHE", "/media/pc1/Ubuntu/Extend_Data/hf_models/hub")
+os.environ.setdefault("HF_DATASETS_CACHE", "/media/pc1/Ubuntu/Extend_Data/hf_models/datasets")
 import sys
 import json
 import uuid
@@ -246,13 +254,6 @@ os.chdir(project_root)
 
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
-
-# Hugging Face caches (put *all* caches/temp on your big drive if needed)
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # adjust if multi-GPU
-os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
-os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
-os.environ["HF_HUB_TEMP_DIR"] = "/media/pc1/Ubuntu/tmp"
 
 from src.rag.vectordb.middleware import Middleware  # noqa: E402
 
@@ -335,7 +336,7 @@ def run_pipeline(state: dict, query: str, image_path: Optional[str]):
     state["kg_results"] = results
 
     if vectordb_docs and results:
-        pdf_paths = [d["original_file"] for d in vectordb_docs]
+        pdf_paths = vectordb_docs
         diag = MW.get_answer_from_medgemma(
             query=query,
             images_path=[image_path] if image_path else [],
@@ -389,6 +390,10 @@ def ui_build():
         with gr.Accordion("📄 Show ColPali Retrieval Results", open=False) as acc_vectordb:
             vectordb_out = gr.Textbox(lines=12, interactive=False, label="Retrieved Documents")
 
+        with gr.Accordion("🧬 Decomposed Features (History & Symptoms)", open=False) as acc_decomp:
+            history_out = gr.Textbox(lines=10, interactive=False, label="History")
+            symptoms_out = gr.Textbox(lines=10, interactive=False, label="Symptoms")
+
         with gr.Accordion("🧠 Show Knowledge Graph Results", open=False) as acc_kg:
             kg_out = gr.Textbox(lines=12, interactive=False, label="Knowledge Graph Info")
 
@@ -409,10 +414,13 @@ def ui_build():
                 sid,
                 _refresh_session_view(sessions, sid),
                 [],
-                gr.update(value=""),
-                gr.update(value=""),
-                gr.update(open=False),
-                gr.update(open=False),
+                gr.update(value=""),   # vectordb_out
+                gr.update(value=""),   # kg_out
+                gr.update(open=False), # acc_vectordb
+                gr.update(open=False), # acc_kg
+                gr.update(value=""),   # history_out   👈 NEW
+                gr.update(value=""),   # symptoms_out  👈 NEW
+                gr.update(open=False), # acc_decomp    👈 NEW
             )
 
         def on_delete(sessions: dict, cur_id: str):
@@ -432,23 +440,27 @@ def ui_build():
                 cur_id,
                 _refresh_session_view(sessions, cur_id),
                 chat_hist,
-                gr.update(value=""),
-                gr.update(value=""),
-                gr.update(open=False),
-                gr.update(open=False),
+                gr.update(value=""),   # vectordb_out
+                gr.update(value=""),   # kg_out
+                gr.update(open=False), # acc_vectordb
+                gr.update(open=False), # acc_kg
+                gr.update(value=""),   # history_out   👈 NEW
+                gr.update(value=""),   # symptoms_out  👈 NEW
+                gr.update(open=False), # acc_decomp    👈 NEW
             )
+
 
         def on_select(name: str, sessions: dict):
             sid = next((k for k, v in sessions.items() if v["name"] == name), None)
             if sid is None:
                 sid = next(iter(sessions))
             chat_hist = _messages_for_chatbot(sessions[sid]["messages"])
-            # close accordions; leave text as-is (or clear if you prefer)
             return (
                 sid,
                 chat_hist,
-                gr.update(open=False),
-                gr.update(open=False),
+                gr.update(open=False), # acc_vectordb
+                gr.update(open=False), # acc_kg
+                gr.update(open=False), # acc_decomp 👈 NEW
             )
 
         def on_send(sessions: dict, cur_id: str, query: str, img: Optional[Image.Image]):
@@ -465,7 +477,7 @@ def ui_build():
 
             chat_hist = _messages_for_chatbot(session["messages"])
 
-            # Fill textboxes
+            # Fill textboxes (existing)
             vdb_text = json.dumps(session.get("vectordb_docs", []), indent=2, ensure_ascii=False) if session.get("vectordb_docs") else ""
             kg_text = (
                 json.dumps(session.get("kg_results", ""), indent=2, ensure_ascii=False)
@@ -473,40 +485,60 @@ def ui_build():
                 else (str(session.get("kg_results", "")) if session.get("kg_results") else "")
             )
 
-            # Open accordions iff we have content
+            # NEW: histories & symptoms
+            decomp = session.get("decomposed") or {}
+            history_text = json.dumps(decomp.get("history", []), indent=2, ensure_ascii=False) if decomp else ""
+            symptoms_text = json.dumps(decomp.get("symptoms", []), indent=2, ensure_ascii=False) if decomp else ""
+            open_decomp = bool(history_text or symptoms_text)
+
             return (
                 sessions,
                 chat_hist,
-                "",  # clear input
-                gr.update(value=vdb_text),
-                gr.update(value=kg_text),
-                gr.update(open=bool(vdb_text)),
-                gr.update(open=bool(kg_text)),
+                "",                               # clear input
+                gr.update(value=vdb_text),        # vectordb_out
+                gr.update(value=kg_text),         # kg_out
+                gr.update(open=bool(vdb_text)),   # acc_vectordb
+                gr.update(open=bool(kg_text)),    # acc_kg
+                gr.update(value=history_text),    # history_out    👈 NEW
+                gr.update(value=symptoms_text),   # symptoms_out   👈 NEW
+                gr.update(open=open_decomp),      # acc_decomp     👈 NEW
             )
 
         # ---- Wire callbacks (note the extra outputs for accordions) ----
         new_btn.click(
             on_new,
             inputs=[gr_sessions],
-            outputs=[gr_sessions, gr_current, sessions_radio, chatbot, vectordb_out, kg_out, acc_vectordb, acc_kg],
+            outputs=[
+                gr_sessions, gr_current, sessions_radio,
+                chatbot, vectordb_out, kg_out, acc_vectordb, acc_kg,
+                history_out, symptoms_out, acc_decomp,   # 👈 NEW
+            ],
         )
 
         del_btn.click(
             on_delete,
             inputs=[gr_sessions, gr_current],
-            outputs=[gr_sessions, gr_current, sessions_radio, chatbot, vectordb_out, kg_out, acc_vectordb, acc_kg],
+            outputs=[
+                gr_sessions, gr_current, sessions_radio,
+                chatbot, vectordb_out, kg_out, acc_vectordb, acc_kg,
+                history_out, symptoms_out, acc_decomp,   # 👈 NEW
+            ],
         )
 
         sessions_radio.change(
             on_select,
             inputs=[sessions_radio, gr_sessions],
-            outputs=[gr_current, chatbot, acc_vectordb, acc_kg],
+            outputs=[gr_current, chatbot, acc_vectordb, acc_kg, acc_decomp],  # 👈 NEW
         )
 
         submit.click(
             on_send,
             inputs=[gr_sessions, gr_current, txt_in, image_in],
-            outputs=[gr_sessions, chatbot, txt_in, vectordb_out, kg_out, acc_vectordb, acc_kg],
+            outputs=[
+                gr_sessions, chatbot, txt_in,
+                vectordb_out, kg_out, acc_vectordb, acc_kg,
+                history_out, symptoms_out, acc_decomp,   # 👈 NEW
+            ],
         )
 
     return demo
