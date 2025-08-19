@@ -128,7 +128,7 @@ class Middleware:
         Retrive relevant information from Knowledge Graph
         """
         print("--------------------------------------------------------------------------------")
-        print("Searching in Knowledge Graph")
+        print("Feature Decomposing...")
         # Feature decomposition the query
         features = self.rag.feature_decomposition(query=query)
         histories = features["history"]
@@ -163,13 +163,14 @@ class Middleware:
             "You are a professional clinician specializing in tropical and infectious disease diagnosis.\n"
             "Please evaluate the patient case and reason through four stages (Information Gathering, Hypothesis Generation, "
             "Hypothesis Testing, Reflection & Final Diagnosis). Be concise and grounded.\n\n"
-            "# PATIENT_CASE\n"
+            "# PATIENT CASE\n"
             f"{query}\n\n"
             "# CONTEXT — RETRIEVED_DOCS\n"
             f"{docs_block}\n\n"
             "# CONTEXT — KNOWLEDGE_GRAPH\n"
             f"{kg_info}\n\n"
-            "Please ground your reasoning in the CONTEXT sections when possible.\n"
-            "Let’s think step by step."
+            "These are relative information now give yyou diagnosis for the PATIENT CASE. Please ground your reasoning in the CONTEXT sections when possible.\n"
+            "Let’s think step by step." \
+            "\n# YOUR DIAGNOSIS"
         )
         return self.rag.get_answer_from_medgemma(fused_query, images_path)
