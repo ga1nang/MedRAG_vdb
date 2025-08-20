@@ -18,10 +18,10 @@ hf_token = os.getenv("HF_TOKEN")
 os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
 
 @lru_cache(maxsize=1)   
-def load_medgemma(quantize: bool, quantization_type: str):
+def load_medgemma(model_name: str, quantize: bool, quantization_type: str):
     kwargs = {
         "task": "image-text-to-text",
-        "model": "google/medgemma-4b-it",
+        "model": model_name,
         "token": hf_token,
         "device_map": "cuda",
         "torch_dtype": torch.bfloat16,
@@ -34,14 +34,14 @@ def load_medgemma(quantize: bool, quantization_type: str):
     return pipeline(**kwargs)   
 
 class Rag:
-    def __init__(self, quantize: bool = False, quantization_type: str = "4bit"):
+    def __init__(self, model_name: str = "google/medgemma-4b-it", quantize: bool = False, quantization_type: str = "4bit"):
         """
         Args:
             quantize (bool): Whether to enable quantization.
             quantization_type (str): "4bit" or "8bit".
         """
         # Build the pipeline with selected options
-        self.pipe = load_medgemma(quantize=quantize, quantization_type=quantization_type)
+        self.pipe = load_medgemma(model_name = model_name, quantize=quantize, quantization_type=quantization_type)
 
         self.message = [
             {

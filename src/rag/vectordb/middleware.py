@@ -24,7 +24,7 @@ cfg = load_config()
 class Middleware:
     """Main entry-point for index() and search() used by the app"""
     
-    def __init__(self, kg_path: str, model_name: str, quantized: bool, create_collection: bool = True, enable_rag: bool = False, quantize_llm: bool = False, quantization_type_llm: str = "4bit"):
+    def __init__(self, llm_backbone: str, kg_path: str, model_name: str, quantized: bool, create_collection: bool = True, enable_rag: bool = False, quantize_llm: bool = False, quantization_type_llm: str = "4bit"):
         # Init manager
         self.pdf_manager = PdfManager()
         # self.colpali_manager = ColPaliManager()
@@ -45,9 +45,9 @@ class Middleware:
         # Initilize LLM backbone
         if enable_rag:
             if quantize_llm:
-                self.rag = Rag(quantize=quantize_llm, quantization_type=quantization_type_llm)
+                self.rag = Rag(model_name=llm_backbone, quantize=quantize_llm, quantization_type=quantization_type_llm)
             else:
-                self.rag = Rag(quantize=quantize_llm)
+                self.rag = Rag(model_name=llm_backbone, quantize=quantize_llm)
         
     def index(
         self,
