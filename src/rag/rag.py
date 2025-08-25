@@ -10,28 +10,75 @@ import warnings
 from functools import lru_cache
 from typing import List, Dict, Optional
 from src.rag.utils.utils import encode_image
-from transformers import pipeline
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+    pipeline,
+)
+
 from dotenv import load_dotenv
 
 load_dotenv()
 hf_token = os.getenv("HF_TOKEN")
 os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
 
-@lru_cache(maxsize=1)   
+def _bnb_cfg(quantize: bool, qtype: str):
+    if not quantize:
+        return None
+    if qtype == "4bit":
+        return BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+        )
+    elif qtype == "8bit":
+        return BitsAndBytesConfig(load_in_8bit=True)
+    else:
+        raise ValueError(f"quantization_type must be '4bit' or '8bit', got {qtype!r}")
+
+def _is_vlm_processor(proc) -> bool:
+    return hasattr(proc, "image_processor") or hasattr(proc, "feature_extractor")
+
+@lru_cache(maxsize=1)
 def load_medgemma(model_name: str, quantize: bool, quantization_type: str):
-    kwargs = {
-        "task": "image-text-to-text",
-        "model": model_name,
-        "token": hf_token,
-        "device_map": "cuda",
-        "torch_dtype": torch.bfloat16,
-    }
-    if quantize:
-        if quantization_type == "4bit":
-            kwargs["load_in_4bit"] = True
-        elif quantization_type == "8bit":
-            kwargs["load_in_8bit"] = True
-    return pipeline(**kwargs)   
+    bnb = _bnb_cfg(quantize, quantization_type)
+
+    # always try AutoProcessor first (works for VLMs, and often for text LLMs too)
+    processor = AutoProcessor.from_pretrained(
+        model_name, trust_remote_code=True
+    )
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+    
+        device_map="auto",
+        torch_dtype=torch.bfloat16,
+        quantization_config=bnb,
+        trust_remote_code=True,
+    )
+
+    if _is_vlm_processor(processor):
+        # ✅ VLM path (e.g., google/gemma-3-27b-it, google/medgemma-4b-it)
+        return pipeline(
+            task="image-text-to-text",
+            model=model,
+            processor=processor,          # <-- single processor is required
+            return_full_text=False,
+        )
+    else:
+        # Fallback: text-only models (kept for completeness)
+        tok = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=True
+        )
+        return pipeline(
+            task="text-generation",
+            model=model,
+            tokenizer=tok,
+            return_full_text=False,
+        )
 
 class Rag:
     def __init__(self, model_name: str = "google/medgemma-4b-it", quantize: bool = False, quantization_type: str = "4bit"):
