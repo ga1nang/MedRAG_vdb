@@ -7,6 +7,8 @@ import re
 import json
 import warnings
 
+from google import genai
+from google.genai import types
 from functools import lru_cache
 from typing import List, Dict, Optional
 from src.rag.utils.utils import encode_image
@@ -23,6 +25,22 @@ from dotenv import load_dotenv
 load_dotenv()
 hf_token = os.getenv("HF_TOKEN")
 os.environ["HF_HOME"] = "/media/pc1/Ubuntu/Extend_Data/hf_models"
+
+def load_gemini_client():
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return client
+
+def _pil_to_gemini_part(img: "PIL.Image.Image", mime: str = "image/png"):
+    import io
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return types.Part.from_bytes(buf.getvalue(), mime_type=mime)
+
+def _system_text_from_self_message(self) -> str:
+    if self.message and self.message[0].get("role") == "system":
+        parts = self.message[0].get("content", [])
+        return "\n".join(p.get("text", "") for p in parts if p.get("type") == "text")
+    return ""
 
 def _bnb_cfg(quantize: bool, qtype: str):
     if not quantize:
@@ -87,8 +105,12 @@ class Rag:
             quantize (bool): Whether to enable quantization.
             quantization_type (str): "4bit" or "8bit".
         """
-        # Build the pipeline with selected options
-        self.pipe = load_medgemma(model_name = model_name, quantize=quantize, quantization_type=quantization_type)
+        self.model_name = model_name
+        if self.model_name[:6] == "gemini":
+            self.client = load_gemini_client()
+        else:
+            # Build the pipeline with selected options
+            self.pipe = load_medgemma(model_name = model_name, quantize=quantize, quantization_type=quantization_type)
 
         self.message = [
             {
@@ -128,36 +150,50 @@ class Rag:
         """
     
     def get_answer_from_medgemma(self, query: str, images_path: List[str]) -> str:
-        # Load images
-        images = [encode_image(p) for p in images_path]    # PIL.Image.Image objects
+        images = [encode_image(p) for p in images_path]
 
-        # Build the messages list with *image placeholders*
-        messages = [
-            {
-                "role": "user",
-                "content": (
-                    [{"type": "image"} for _ in images] +   # one placeholder per image
-                    [{"type": "text", "text": query}]
-                ),
-            }
-        ]
-        messages = self.message + messages
-        print(messages)
-        # Call pipeline (chat mode)
-        outputs = self.pipe(
-            text=messages,
-            images=images,
-            max_new_tokens=2048,
-            return_full_text=False,
-            do_sample=False,   # temperature is ignored
-            num_beams=1,       # ensure pure greedy
-        )
+        if self.model_name[:6] == "gemini":
+            # --- GEMINI: include system + user (images first, then text) ---
+            from google.genai import types as gtypes
+            system_text = self._system_text_from_self_message()
+
+            system_content = gtypes.Content(
+                role="system",
+                parts=[gtypes.Part.from_text(system_text)]
+            )
+
+            user_parts = [ _pil_to_gemini_part(img) for img in images ]
+            user_parts.append(gtypes.Part.from_text(query))
+
+            user_content = gtypes.Content(role="user", parts=user_parts)
+
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[system_content, user_content],
+            )
+            return response.text
+
+        # --- HF pipeline path: keep your existing chat format ---
+        user_msg = {
+            "role": "user",
+            "content": ([{"type": "image"} for _ in images] + [{"type": "text", "text": query}]),
+        }
+        messages = self.message + [user_msg]
+
+        with torch.inference_mode():
+            outputs = self.pipe(
+                text=messages,
+                images=images,
+                max_new_tokens=2048,
+                return_full_text=False,
+                do_sample=False,
+                num_beams=1,
+                use_cache=False,
+            )
         result = outputs[0]["generated_text"]
-        # Free VRAM
         del outputs
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-        # Assistant reply is in ["generated_text"]
         return result
     
     def feature_decomposition(
@@ -166,34 +202,42 @@ class Rag:
         images_path: Optional[List[str]] = None,
         max_new_tokens: int = 2048,
     ) -> Dict[str, List[str]]:
-        """
-        Extracts 'history' and 'symptoms' using the reliable scratchpad method.
-        """
-        # ---------- 1. prepare inputs ---------- #
         images_path = images_path or []
-        images = [encode_image(p) for p in images_path] if images_path else []
-        messages = self._build_chat(query, images)
+        images = [encode_image(p) for p in images_path]
+        messages = self._build_chat(query, images)  # HF chat format (for HF path)
 
-        # ---------- 2. call the model ---------- #
-        outputs = self.pipe(
-            text=messages,
-            images=images,
-            max_new_tokens=max_new_tokens,
-            return_full_text=False,
-            do_sample=False,   # temperature is ignored
-            num_beams=1,       # ensure pure greedy
-        )
-        raw_output = outputs[0]["generated_text"]
-        # print(f"Raw output: \n{raw_output}")
-        # Free VRAM
-        del outputs
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
+        if self.model_name[:6] == "gemini":
+            # --- Build Gemini contents using the *feature decomposition* system prompt ---
+            from google.genai import types as gtypes
+            sys_text = self._load_feature_decomposition_prompt()
+            system_content = gtypes.Content(role="system", parts=[gtypes.Part.from_text(sys_text)])
 
-        # ---------- 3. parse and normalise ---------- #
-        # Use the new, dedicated parser for the scratchpad format
+            user_parts = [ _pil_to_gemini_part(img) for img in images ]
+            user_parts.append(gtypes.Part.from_text(query))
+            user_content = gtypes.Content(role="user", parts=user_parts)
+
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[system_content, user_content],
+            )
+            raw_output = response.text
+        else:
+            with torch.inference_mode():
+                outputs = self.pipe(
+                    text=messages,
+                    images=images,
+                    max_new_tokens=max_new_tokens,
+                    return_full_text=False,
+                    do_sample=False,
+                    num_beams=1,
+                    use_cache=False,
+                )
+            raw_output = outputs[0]["generated_text"]
+            del outputs
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
         result = self._parse_final_json_from_scratchpad(raw_output)
-        
         return {
             "history":  self._normalise(result.get("history",  [])),
             "symptoms": self._normalise(result.get("symptoms", [])),
@@ -212,54 +256,6 @@ class Rag:
         if images:                                              # only add placeholders if any
             user_content = [{"type": "image"} for _ in images] + user_content
         return [sys_msg, {"role": "user", "content": user_content}]
-    
-    # def _load_feature_decomposition_prompt(self) -> str:
-    #     """
-    #     Returns the optimized prompt for MedGemma (4B) to extract structured
-    #     clinical features from free-text input. The model must output only
-    #     a valid JSON object with "history" and "symptoms" keys.
-    #     """
-    #     return (
-    #         "You are an automated medical data extraction engine. Your sole function is to parse clinical text "
-    #         "and return a single, raw JSON object. Your output is fed directly into a program and will fail "
-    #         "if not formatted precisely. Do not provide any explanation or conversational text.\n\n"
-
-    #         "<INSTRUCTIONS>\n"
-    #         "1.  **Analyze**: Carefully read the <USER_INPUT> to identify all relevant clinical information.\n"
-    #         "2.  **Categorize**: Separate the information into exactly two categories:\n"
-    #         "    - `history`: Chronic diseases, past surgeries, and relevant lifestyle/risk factors (e.g., smoking).\n"
-    #         "    - `symptoms`: Current complaints, signs, or findings the patient is actively experiencing.\n"
-    #         "3.  **Normalize**: Convert all extracted items into lowercase, short phrases. Remove all internal punctuation.\n"
-    #         "4.  **Format**: Construct a single JSON object. The first character of your output must be `{` and the last must be `}`.\n"
-    #         "</INSTRUCTIONS>\n\n"
-
-    #         "<FORMATTING_RULES>\n"
-    #         "-   **Output**: Must be ONLY a valid JSON object.\n"
-    #         "-   **Keys**: Must be exactly `\"history\"` and `\"symptoms\"`.\n"
-    #         "-   **Values**: Must be a JSON array of strings `[...]`.\n"
-    #         "-   **Empty State**: If no items are found for a category, use an empty array `[]`. If the input is empty or irrelevant, output exactly `{\"history\": [], \"symptoms\": []}`.\n"
-    #         "-   **Prohibited**: Do NOT include markdown (like ```json), comments, apologies, or any text outside the JSON structure.\n"
-    #         "-   **Quotes**: Use only double quotes `\"` for all keys and string values.\n"
-    #         "-   **Failure**: Any deviation from these rules constitutes a critical failure.\n"
-    #         "</FORMATTING_RULES>\n\n"
-
-    #         "<EXAMPLES>\n"
-    #         "USER_INPUT: \"I have had type-2 diabetes since 2015 and a knee replacement, but now I'm coughing and feel feverish.\"\n"
-    #         "OUTPUT: {\"history\": [\"type 2 diabetes\", \"knee replacement\"], \"symptoms\": [\"cough\", \"fever\"]}\n\n"
-
-    #         "USER_INPUT: \"healthy teenager, sudden chest pain and shortness of breath after basketball.\"\n"
-    #         "OUTPUT: {\"history\": [], \"symptoms\": [\"chest pain\", \"shortness of breath\"]}\n\n"
-
-    #         "USER_INPUT: \"74-year-old smoker with hypertension, presents with weight loss and hemoptysis.\"\n"
-    #         "OUTPUT: {\"history\": [\"smoking\", \"hypertension\"], \"symptoms\": [\"weight loss\", \"hemoptysis\"]}\n\n"
-
-    #         "USER_INPUT: \"no medical issues, feeling great.\"\n"
-    #         "OUTPUT: {\"history\": [], \"symptoms\": []}\n"
-    #         "</EXAMPLES>\n\n"
-
-    #         "Process the following input according to all rules.\n\n"
-    #         "<USER_INPUT>"
-    #     )
 
     def _load_feature_decomposition_prompt(self) -> str:
         """
